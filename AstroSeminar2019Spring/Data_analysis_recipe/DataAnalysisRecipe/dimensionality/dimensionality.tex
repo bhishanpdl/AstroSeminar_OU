@@ -1,0 +1,73 @@
+% This file is part of the Data Analysis Recipes project.
+% Copyright 2013 the author(s).
+
+% to-do
+% -----
+% - outline
+% - write
+% - put on arXiv
+
+\documentclass[12pt,twoside]{article}
+\input{../hogg_style}
+
+% header stuff
+\renewcommand{\MakeUppercase}[1]{#1}
+\pagestyle{myheadings}
+\renewcommand{\sectionmark}[1]{\markright{\thesection.~#1}}
+\markboth{Dimensionality reduction}{}
+
+\newcommand{\data}{D}
+\newcommand{\pars}{\theta}
+\newcommand{\cv}{\mathrm{CV}}
+\newcommand{\pcv}{p_{\cv}}
+
+\begin{document}
+\thispagestyle{plain}\raggedbottom
+\section*{Data analysis recipes:\ \\
+  Data-driven models and reduction of \\ dimensionality}
+
+\footnotetext{The \notename s begin on page~\pageref{note:first},
+  including the license\note{\label{note:first} Copyright 2013 by the
+    authors.  You may copy and distribute this document provided that
+    you make no changes to it whatsoever.}  and the
+  acknowledgements\note{It is a pleasure to thank
+      Sam Roweis (deceased), and
+      Vivi Tsalmantza (Heidelberg)
+    for valuable comments and discussions.  This research was
+    partially supported by NASA (ADP grant NNX08AJ48G), NSF (grant
+    AST-0908357), and a Research Fellowship of the Alexander von
+    Humboldt Foundation.}}
+
+\noindent
+David~W.~Hogg\\
+\affil{Center~for~Cosmology~and~Particle~Physics, Department~of~Physics, New~York~University}\\
+\affil{Max-Planck-Institut f\"ur Astronomie, Heidelberg}
+
+\begin{abstract}
+There are many situations in which investigators have large amounts of
+data from some phenomenon, but no good model; in these cases, a model
+can be built from the data themselves.  Because these kinds of models
+are designed to produce compact approximate representations of the
+data, they are forms of dimensionality reduction.  The standard and
+simplest method is that of principal components analysis (PCA), which
+is effective with data sets in which the structure of interest is
+detected at high signal-to-noise in all data points, and all data
+points are completely measured.  I describe PCA and its great
+limitations, and suggest a number of methods that are far better and
+not far more complex.  In particular I focus on methods that permit
+using data with large noise, heteroskedasticity, and missing values;
+these methods are probabilistic and generative.
+\end{abstract}
+
+\clearpage
+\markright{Notes}\theendnotes
+
+\clearpage
+\begin{thebibliography}{}\markright{References}
+\bibitem[Bovy, Hogg, \& Roweis(2009)]{bovy}
+  Bovy,~J., Hogg,~D.~W., \& Roweis, S.~T., 2009,
+  Extreme deconvolution: inferring complete distribution functions from noisy, heterogeneous, and incomplete observations, 
+  arXiv:0905.2979 [stat.ME]
+\end{thebibliography}
+
+\end{document}

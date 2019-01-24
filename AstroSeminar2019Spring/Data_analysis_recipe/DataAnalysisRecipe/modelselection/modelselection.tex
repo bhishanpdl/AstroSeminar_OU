@@ -1,0 +1,628 @@
+% This file is part of the Data Analysis Recipes project.
+% Copyright 2011, 2012, 2013 the author(s).
+
+% to-do
+% -----
+% - make figures demonstrating techniques
+% - the figures should demonstrate all three of AIC/BIC, cross-validation, and marginalized likelihood
+% - the continuously variable complexity example takes up too much space
+% - the continuously variable complexity example needs to switch to a cubic spline model
+% - argument against the evidence needs to be sharpened up.  See email to Ivezic and Vanderplas in 2013-05.
+
+\documentclass[12pt,twoside]{article}
+\input{../hogg_style}
+
+% header stuff
+\renewcommand{\MakeUppercase}[1]{#1}
+\pagestyle{myheadings}
+\renewcommand{\sectionmark}[1]{\markright{\thesection.~#1}}
+\markboth{Comparing models of different complexity}{}
+
+\newcommand{\data}{D}
+\newcommand{\pars}{\theta}
+\newcommand{\cv}{\mathrm{CV}}
+\newcommand{\pcv}{p_{\cv}}
+
+\begin{document}
+\thispagestyle{plain}\raggedbottom
+\section*{Data analysis recipes:\ \\
+  Comparing models of different complexity\footnotemark}
+
+\footnotetext{The \notename s begin on page~\pageref{note:first},
+  including the license\note{\label{note:first} Copyright 2011, 2012, 2013 by the
+    authors.  You may copy and distribute this document provided that
+    you make no changes to it whatsoever.}  and the
+  acknowledgements\note{It is a pleasure to thank
+      Jo Bovy (IAS),
+      Dustin Lang (CMU),
+      Dan Foreman-Mackey (NYU),
+      Iain Murray (Edinburgh),
+      Hans-Walter Rix (MPIA), and
+      Sam Roweis (deceased)
+    for valuable comments and discussions.  This research was
+    partially supported by NASA (ADP grant NNX08AJ48G), NSF (grant
+    AST-0908357), and a Research Fellowship of the Alexander von
+    Humboldt Foundation.  This research made use of the Python
+    programming language and the open-source Python packages scipy,
+    numpy, and matplotlib.}.}
+
+\noindent
+David~W.~Hogg\\
+\affil{Center~for~Cosmology~and~Particle~Physics, Department~of~Physics, New~York~University}\\
+\affil{Max-Planck-Institut f\"ur Astronomie, Heidelberg}
+%% \\[1ex]
+%% Jo~Bovy\\
+%% \affil{Institute for Advanced Study, Princeton}
+%% \\[1ex]
+%% Dustin~Lang\\
+%% \affil{Princeton University Observatory}\\
+%% \affil{Department of Physics, Carnegie Mellon University}
+
+\begin{abstract}
+  Frequently the data analyst is faced with the comparison of models
+  of very different levels of complexity or very different amounts of
+  freedom to fit or explain the data.  We begin by discussing the
+  assessment of model complexity, in part to criticize the idea that
+  it is directly related to the number of parameters in the model: It
+  is not, except in rare circumstances.  Model selection---choosing
+  among models of differing complexity---can often be avoided; we
+  advocate avoiding it.  If the decision cannot be avoided, we discuss
+  options, including frequentist information criteria, Bayesian
+  ``evidence'', and probabilistic decision theory.  I recommend the
+  data-driven technique of leave-one-out cross-validation, which
+  locates the model that best predicts left-out ``validation'' data
+  after being fit to (or learning from) left-in ``training'' data.
+  Ultimately, decisions such as model-selection decisions must involve
+  the investigator's utility; all methods that ignore utility (as all the above-mentioned methods do) are
+  bound to lead to unwanted results at least sometimes.
+\end{abstract}
+
+A scientist makes model complexity decisions---implicitly or
+explicitly---every day.  For example, on a trivial scale, any decision
+about binning a histogram (small bins or big bins) or fitting a curve
+(linear or quadratic) or combining data (average all the data taken on
+the same day or all the data taken in the same year) is a decision
+about model complexity; in each case the decision is about how much
+freedom to give to some free function.
+
+At a grander scale, many important scientific discoveries are model
+complexity decisions.  For example, the decision that data on a star's
+radial velocity as a function of time is better described by a model
+that includes perturbations from an orbiting exoplanet---better than a
+model that \emph{doesn't} include any exoplanet---is simultaneously a
+model selection decision and an exoplanet \emph{discovery}.  That
+discovery is a decision to increase model complexity, but also many
+scientific discoveries are decisions to decrease model complexity;
+consider for example the heliocentric model of the Solar System.  It
+was adopted in part because it led to an enormous decrease in the
+complexity of the quantitative Solar System model, reducing greatly
+the number of free parameters.
+
+Of course a model with more freedom will, in general, lead to a better
+description of the data in the trivial sense that it can reproduce the
+observed features more closely.  But a model with more freedom will
+also, in general, be less predictive, because finite uncertainties in
+the parameters will propagate into greater uncertainty in prediction
+as the number of imprecisely determined (independent) parameters
+increases.  The challenge of model selection is to balance these
+considerations; a scientifically good model must both describe the
+existing data well and also predict new or left-out data well.\note{In
+  this sense, Ockham's Razor, na\"ively construed, is wrong, or
+  perhaps useless: It is not the case that the simplest model that
+  explains the data is the best.  First of all, the scientist is
+  (almost) never presented with two models that are \emph{equally}
+  good at explaining the data.  Second of all, even if the two models
+  \emph{are} equal at explaining existing data, are they equal at
+  predicting new data?  Some Bayesians have taken Ockham's Razor very
+  seriously, claiming that Bayesian inference and Bayesian model
+  selection justifies Ockham's Razor, but this view relies on a
+  careful interpretation of Ockham that doesn't necessarily do justice
+  to the original.}
+
+One key idea in what follows is that probability alone---the rules
+underlying the frequentist and Bayesian reasoning we have been
+tracking in these \documentnames ---cannot tell you how to strike the
+balance between model freedom and goodness-of-fit.  How you decide
+between models involves probability, to be sure, but it also involves
+your \emph{utility}.  For example, in the exoplanet example mentioned
+above, whether or not you decide that there is an exoplanet in the
+data depends in part on how much the exoplanet improves the fit.  But
+it also depends in part on how much it hurts you if you claim a
+discovery and later turn out to be wrong.  Or how much it hurts you to
+\emph{miss} making a discovery that you might have made.  I won't say,
+in this document, all that much about how you compute your utility;
+that's for another \documentname\note{cite decision \documentname},
+but we will see where utility comes in to the calculation, and the
+different things that a Bayesian or frequentist should do with it.
+
+Even the most trivial decisions in a data analysis pipeline (for
+example, decisions about what data to include or not in a catalog or
+table, what data to mark as ``outliers'' or corrupted, and so on) are
+themselves usually model-complexity decisions.  They tend to be made
+casually and heuristically, on the basis of things like the ``number
+of sigma'' some parameter is out of spec, or likelihood ratios (or,
+equivalently, $\chi^2$ differences).  These choices are all
+legitimate; they will all come up again below.  These heuristics have
+been discovered because they give good approximations to utility
+optimizations, or because they give good protection from utility
+disasters.
+
+\section{Model complexity}
+
+The concept of model complexity is somewhat slippery.  In the case of
+a purely linear model, the model complexity is directly related to the
+number of free parameters, but in every other case it is less
+well-defined.  We will begin with a few examples of models of
+differing or variable complexity to get at some of the issues in the
+\emph{definition} of model complexity.  After that, we will turn to
+methods for choosing among models of different complexity.
+
+The most simple case is that of a linear model---a model in which the
+predicted mean of the data is a linear function of the
+parameters---and Gaussian noise of known variances.  In this case,
+logarithmic likelihood ratios are just $\chi^2$ differences and model
+complexity is directly associated with the \emph{number of parameters}
+$K$.  The more parameters, the more freedom the model has; it is that
+simple.  The only assumptions behind this (beyond linearity and
+Gaussianity and known variances) is that the linear functions are
+linearly independent in the vector sense\note{Here the over-used word
+  ``independent'' means can not be coadded with non-zero coefficients
+  to produce zero mean prediction; this is independence in the vector
+  sense of spanning a full-rank space, not the probability sense of
+  separability.} and that they are non-trivial in the sense that they
+have support or act at the location of the data\note{Strictly this
+  support requirement is implied by independence already.}.
+
+Most interesting models are \emph{not} linear however, so this simple
+relationship between the number of parameters $K$ and the model
+complexity should always be treated with suspicion and is not true in
+general.  One model that serves as an example to illustrate this
+divergence between the complexity and the number of parameters is the
+following.\note{We owe this model to Yann LeCun (NYU), via Sam
+  Roweis.}  Imagine having $N$ data points $(x_i,y_i)$ in some finite
+domain in $x$ and $y$, with observational uncertainties of some kind
+we need not specify precisely for the moment.  Now fit to these data
+the model
+\begin{equation}\label{eq:lecun}
+y_i = A\,\sin (k\,x + \phi)
+  \quad ,
+\end{equation}
+where $A$ is an amplitude, $k$ is a wave number (or frequency), and
+$\phi$ is a phase.  With suitable---and suitably
+\emph{precise}---specification of these parameters, it is possible to
+\emph{exactly fit all $N$ data points, no matter what they are}.  The
+only assumption is that $x_i \ne x_j$ for $i \ne j$.  Furthermore,
+there is not just one location in the $(A,k,\phi)$ space that fits all
+the data points, there is an enormous infinity of solutions, no matter
+how large $N$.
+
+In the standard situation of linear fitting, if there are $K$
+components---and thus $K$ free parameters---it is possible to match
+\emph{exactly} at most $K$ data points, and even this is only
+guaranteed if all of the components have support on the $x$ range of
+the data and they are appropriately independent under the $x$-sampling
+of the data.  If we equate model complexity with the power to flexibly
+fit arbitrary data, then the three-parameter sinusoidal model of
+\equationname~(\ref{eq:lecun}) has as much complexity as a linear
+model with an \emph{infinite number of parameters}.
+
+Of course the implied paradox has a simple resolution: In order to fit
+the data precisely, the parameters of the model---especially the wave
+number $k$---must be specified to enormous \emph{precision} or \emph{bit depth}.  That is,
+the $K$-component linear model gets its power to fit by having a large
+number of parameters.  The sinusoidal model gets its power to fit by
+having a large number of digits of accuracy devoted to the $k$
+parameter (and, in some limits, the $A$ parameter).
+
+...Hogg:  Perhaps give a specific illustration of this here.---Hogg
+
+When a linear model with $K=N$ is used to exactly fit all $N$ data
+points, the $N$ parameters can be seen as a simple invertible linear
+transformation of the data; that is, the parameters are (in some
+sense) a lossless encoding of the data.  When the sinusoidal model is
+used to exactly fit all $N$ points, the model again is being used to
+losslessly encode the data, but now the encoding is nonlinear, and
+requires of the parameters enormous precision in their representation.
+This enormous precision is required because all of the information in
+all $N$ data points---all the bits, if you like---must be encoded into
+only three parameters.
+
+Another model that serves to illustrate that model complexity is not
+directly related to the number of parameters is the following, in
+which there are \emph{far more parameters} than data points, but
+nonetheless the model has limited freedom.  The freedom of the model
+is controlled by a continuous smoothness parameter, which effectively
+makes this a model with continuously variable complexity.
+
+Imagine a set of $N$ data points $(x_i,y_i)$ which deviate from a
+$K$-dimensional (or $K$-parameter) linear model by the addition (to
+the $y$ values) of noise samples $e_i$ drawn from Gaussian
+distributions of (presumed known) variances $\sigma_{yi}^2$.  The
+model can be written as
+\begin{equation}
+y_i = \sum_{j=1}^K
+  a_{ij}\,x_j + e_i
+  \quad ,
+\end{equation}
+or, in matrix notation,
+\begin{equation}
+\mY = \mA\,\mX + \me
+  \quad ,
+\end{equation}
+where $\mY$ is an $N$-dimensional vector of the $y_i$, $\mA$ is an
+$N\times K$ matrix of (presumed known) coefficients $a_{ij}$, $\mX$ is
+a $K$-dimensional vector of the parameters $x_j$, and $\me$ is an
+$N$-dimensional vector of the noise draws or errors $e_i$.  The
+standard thing to do is to minimize a $\chi^2$ scalar
+\begin{equation}
+\chi^2 = \sum_{i=1}^N
+  \frac{\left[y_i - a_{ij}\,x_j\right]^2}{\sigma_{yi}^2}
+  \quad ,
+\end{equation}
+where this is scientifically justified when all the aforementioned
+assumptions (linear model space includes the truth, noise is Gaussian
+with known variances, and so on) are true.  This objective ($\chi^2$)
+is truly a scalar in the sense that it has a compact matrix
+representation
+\begin{equation}
+\chi^2 = \transpose{\left[\mY-\mA\,\mX\right]}
+  \,\mCinv\,\left[\mY-\mA\,\mX\right]
+  \quad .
+\end{equation}
+In this situation, when $N<K$, the best-fit value for the parameters
+(the elements of $\mX$) is given by
+\begin{equation}
+\mX_\best = \inverse{\left[\mAT\,\mCinv\,\mA\right]}
+  \,\left[\mAT\,\mCinv\,\mY\right]
+  \quad ,
+\end{equation}
+which was found by forcing the full derivative of the $\chi^2$ scalar
+to vanish.  In this formulation, if the (errors of the) $y_i$ are
+independent, the covariance matrix $\mC$ is the diagonal $N\times N$
+matrix with the noise variances $\sigma_{yi}^2$ on the diagonal.
+
+Frequently (for engineers, if not astronomers) the condition $N<K$
+does not hold, but there are smoothness expectations that provide
+enough support to set the parameters nonetheless.  The simplest
+implementation of a smoothness prior or regularization is the addition
+to $\chi^2$ of a quadratic penalty for derivatives in the parameters
+$x_j$.  In this picture, we imagine the parameters $x_j$ are ordered
+such that nearby $j$ are nearby in the appropriate sense.  The scalar
+objective gets modified in this case to
+\begin{equation}
+\chi_r^2 = \sum_{i=1}^N
+  \frac{\left[y_i - a_{ij}\,x_j\right]^2}{\sigma_{yi}^2}
+  + \epsilon\,\sum_{j=1}^{K-1}\left[x_{j+1}-x_j\right]^2
+  \quad ,
+\end{equation}
+where $\epsilon$ is a control parameter that controls the smoothness
+of the model, or the stiffness of it, or else the model complexity in
+some sense.  Under this objective, the best fit parameter vector is
+given by
+\begin{equation}
+\mX_\best = \inverse{\left[\mAT\,\mCinv\,\mA + \epsilon\,\mQ\right]}
+  \,\left[\mAT\,\mCinv\,\mY\right]
+  \quad ,
+\end{equation}
+where the $K\times K$ matrix $\mQ$ is a tri-diagonal matrix that looks
+like this
+\begin{equation}
+\mQ = \left[\begin{array}{cccccc}
+    1 &-1 & 0 & 0 & 0 & 0 \\
+   -1 & 2 &-1 & 0 & 0 & 0 \\
+    0 &-1 & 2 &-1 & 0 & 0 \\
+    0 & 0 &-1 & 2 &-1 & 0 \\
+    0 & 0 & 0 &-1 & 2 &-1 \\
+    0 & 0 & 0 & 0 &-1 & 1 \\
+  \end{array}\right]
+  \quad ,
+\end{equation}
+in the case of $K=6$ parameters and generalizes in the obvious way for
+different $K$.
+
+\section{What is a model?}
+
+Enough about model complexity or model freedom; it is time to
+\emph{select} the best model from a set.  That said, before we can
+talk about deciding \emph{among} models, we have to say what a model
+\emph{is}.  We have covered this ground in previous
+\documentnames\note{cite SOME OTHER DOCUMENT.}, but we will briefly
+recap here.  For our purposes, a model is a \emph{prediction about
+  data}.  That prediction needs to include, at the very least, a
+probability density function (pdf) $p(\data\given\pars, H)$ that
+assigns a probability density to any possible data set $\data$ given a
+setting of parameters $\pars$ and some fundamental model assumptions
+and approximations and prior information $H$.  This picture of a model
+is aggressively probabilistic: It produces probabilities over data,
+not data.  In addition, a model often (Bayesians would say
+\emph{always}) also has a prior pdf over model parameters
+$p(\pars\given H)$.
+
+A few notes: The pdf for the data $p(\data\given\pars, H)$ is often
+called (dumbly\note{explain dumbness}) the ``likelihood'' for the
+parameters, especially when it is evaluated at the value of the
+actual, observed data and treated as a function of the parameters
+$\pars$.  The data object $\data$ should be thought of as a
+high-dimensional vector or list or blob of data, with one element for
+every scalar measurement or observation.  The parameters object
+$\pars$ is similarly a high-dimensional vector or list or blob of all
+the parameters that are permitted to vary.  The model-specification
+object $H$ (the contents of which we will never fully specify\note{It
+  would be almost impossible to list everything that is absorbed into
+  $H$, since in some sense it includes an enumeration of everything
+  you are assuming, explicitly and implicitly, in your model.  This
+  includes crazy things like that your computer obeys the IEEE
+  arithmetic specification, and that the data file you have was not
+  generated by a trickster demigod.}) includes all the model
+assumptions, but also all the prior information like the noise
+properties of the data and so on.  This huge bundle of information is
+all part of the model in the sense that different assumptions will
+lead to different likelihood functions and therefore different
+calculations of probabilities.  As we emphasize elsewhere\note{cite
+  PROBABILITY CALCULUS DOCUMENT}, the likelihood has units of
+inverse-data, the prior pdf has units of inverse-parameters; these
+dimensional facts will be relevant when we do integrals (below).
+
+For what follows, it is useful to remember that, when the noise
+contributions are treated as being drawn from Gaussians with known
+variances, the logarithm of the likelihood is proportional to a
+quadratic $\chi^2$ objective.\note{Hogg: CITE MODEL FITTING DOCUMENT},  
+
+\section{Standard decision criteria}
+
+If two models have similar freedom (suitably defined; though the
+perceptive reader will notice that have avoided defining it\note{Hogg:
+  What is the definition of model complexity?}), then the model with
+the higher likelihood---or smaller value of $\chi^2$---is to be
+preferred.  If the two models have different complexity or freedom,
+then the model with the greater freedom will (in general) fit better;
+in deciding between the models, the likelihood or $\chi^2$ should be
+adjusted by something related to model complexity in order to penalize
+the more free model for its freedom.
+
+Despite all the warnings above about the ``number of parameters'', in
+the case of linear models (predictions are linear combinations of the
+parameters), and Gaussian noise of known variances, and no significant
+prior information, the model complexity is just the number of
+parameters $K$ (and in this same case, the logarithm of the likelihood
+is just $-\chi^2/2$).  In this restrictive case---restrictive because
+it is rare that models are perfectly linear, and when they are, it is
+rare that the noise is Gaussian and well understood, and even when
+that is the case, it is rare that the other implicit assumptions in
+$H$ will be reasonable or justified---the penalty for model complexity
+can be simply a constant times $K$ added to $\chi^2$.  The two
+standard methods are AIC\note{Hogg cite AIC and spell it out and its
+  assumptions}, where the comparison is made on the basis of $\chi^2 +
+2\,K$, and BIC\note{Hogg cite BIC and spell it out and its
+  asssumptions}, where it is $\chi^2 + K\,\ln N$ [CHECK], where $N$ is
+the number of data points.  There is a lot to say about the
+justifications for these methods---the AIC is based on predictive
+power and the BIC is based on an approximation to the Bayesian
+evidence (about which more below)---but we will spare the reader
+because we \emph{do not recommend them}.
+
+We don't recommend using the AIC, because in the linear case it
+approximates cross-validation (HOGG DOES IT REALLY?), which---for a
+linear problem---is fast to compute directly, with no approximation.
+We don't recommend using the BIC, because in the linear case it
+approximates the Bayesian evidence or marginalized likelihood (see
+below).  Again, in the case of a linear problem, this is trivial and
+fast to compute.  That is, both of these methods make approximations
+that are only valid in cases in which the non-approximate calculation
+is straightforward and inexpensive!  And when the models get
+non-linear (so the number of parameters does \emph{not} precisely
+describe the model freedom), and when the other assumptions (about
+Gaussian errors and known variance and priors) become false, these
+methods must behave unpredictably.\note{Well, these methods will
+  always act ``predictably'' but only predictably in the sense that an
+  expensive computational analysis will tell you important things
+  about how they in fact behave, with a new analysis required for
+  every new problem.}
+
+
+
+...There is a deeper reason to dislike AIC and BIC and that is that
+they make deep assumptions about your \emph{utility}... must be wrong,
+because you don't even know what they are...
+
+...In what circumstances \emph{does} it make sense to use them?  Fastness.
+
+\section{Degrees of freedom}
+
+One common---but seriously wrong---method for deciding between models
+is to look at $\chi^2$ \emph{per degree of freedom} $\nu$, where the
+very badly named\note{It should be called the ``number of degrees of
+  constraint'' because it increases as the model becomes \emph{less}
+  free.} ``number of degrees of freedom'' is defined to be the number
+of data points $N$ minus the number of parameters $K$.  As with AIC
+and BIC, if the model is a good fit to the data, and it is linear, and
+the noise in the data points is Gaussian with known variances, then
+$\chi^2/\nu$ ought to be near unity (within a few $1/\sqrt{\nu}$ of
+unity).  Often this issue is raised when model selection is raised.
+Unfortunately, this idea is \emph{not relevant} to model selection.
+The comparison of $\chi^2$ to $\nu$ is appropriate in the context of
+model \emph{checking}.  In model checking, the question is: ``Which
+models do a good job of generating the data?''.  In model selection,
+the question is ``Of this set of models, which should I choose?''.
+
+It is confusing that two models might both be good at generating the
+data---both generate a $\chi^2/\nu$ near enough unity to be
+reasonable---but at the same time, one of them is enormously
+preferred.  An example would be model A, with $\chi^2=45.3$, $\nu=44$,
+and model B, with $\chi^2=51.1$, $\nu=43$, acting on the same data.
+Both models have $\chi^2/\nu$ reasonable, but in fact by the standard
+AIC or BIC criteria (which we have just disdained, but could
+conceivably be applicable) model A would be greatly preferred, because
+it has better $\chi^2$ \emph{and} fewer parameters (it had higher
+$\nu$ so lower number of parameters).  The resolution of this
+paradox---that both models can be ``fine'' but one is
+``preferred''---is that the $\chi^2/\nu$ question is about
+\emph{accuracy} and the model selection question is about
+\emph{precision}.  The data might not \emph{rule out} a model but
+still vastly prefer its competitor.
+
+The much more common case is not this case.  The more common case is
+that \emph{no} model is a good fit to the data---all models have bad
+$\chi^2/\nu$---but we still need to make a call among them.  Once
+again, the accuracy and precision questions are separate: Even if no
+model does a good job of generating the data, you might still vastly
+prefer one over the other.  And of course the sensible researcher
+would not ignore the $\chi^2/\nu$ test: It indicates that the models
+\emph{all} need improving.\note{...Stuff about all models being wrong,
+  being approximate.  All models will fail the $\chi^2/\nu$ test if
+  the data sets get large enough.  And so on...}
+
+\section{Bayesian evidence or marginalized likelihood}
+
+The only trivial---``trivial'' in the sense of introducing no new
+ideas, not in the sense of ``easy''\note{Indeed, calculation of the
+  Bayesian evidence or marginalized likelihood is usually extremely
+  difficult and computationally expensive.}---Bayesian computation
+relevant to model comparison is computation of the marginalized
+likelihood or (badly named\note{The word ``evidence'' is uselessly
+  overloaded.}) ``Bayesian evidence''.  This is the likelihood
+integrated over all the parameter space, using the prior as the
+integration measure (which is the real meaning of the prior
+pdf\note{cite SOME OTHER DOCUMENT.}):
+\begin{eqnarray}
+p(\data\given H) &=& \int p(\data\given\pars, H)\,p(\pars\given H)\,\dd\pars
+\quad,
+\end{eqnarray}
+where $p(\data\given H)$ is the marginalized likelihood, the
+probability of the full data set $\data$ given the hypothesis or model
+$H$, integrating over all the parameters $\pars$.
+
+...Why it is \emph{so sensitive} to the priors?
+
+...Why is it so expensive?  How do we compute it in practice?
+
+Fundamentally, however---even if the prior sensitivity can be
+swallowed and the computational expenses paid---the reason this long
+and brutish calculation of marginalized likelihoods is not the right
+way to \emph{decide among} models is that all it delivers is
+marginalized likelihoods.  These are crucial ingredients in making
+probabilistic statements about models, to be sure, but they fail to do
+the important thing of \emph{deciding among} models.  The fundamental
+reason is that raised at the beginning of this \documentname:
+\emph{Decsions involve utility}.  Another way to put it is this:
+
+It is true that marginalized likelihoods are the only things that a
+true Bayesian can justifiably calculate, given multiple qualitatively
+different models.  At the same time, a true Bayesian is a
+probabilistic reasoner: He or she obtains \emph{probabilities} for
+models, not \emph{choices} among models.  That is, these marginalized
+likelihood values tell the true Bayesian not \emph{how to decide}
+among the models but \emph{how to mix} the models!  That is, the best
+model, at the end of a set of long, hard, prior-dependent marginalized
+likelihood calculations is not the model with the largest marginalized
+likelihood.  It is the model that is the mixture of all the models,
+weighted by their overall model priors times their marginalized
+likelihoods.  What does this mixture look like?  It treats the data as
+being generated not by any one model, but rather from model $A$ with
+some probability $P_A$, from model $B$ with some probability $P_B$,
+and so on.
+
+...get specific about calculation of these posterior mixing weights
+and give an example with polynomials.
+
+\section{Bayesian decision theory}
+
+...It is all about utility.  And priors.
+
+...What can frequentists do with utility?  They can only minimize
+worst-case loss within some bag of models.  Or maximize best-case
+gain (that isn't usually chosen, not sure why).
+
+\section{Cross-validation}
+
+The idea of cross-validation is that we will ask whether each model is
+a good predictor of left-out data.  That is, whether the model---when
+trained on all but a held-out portion of the data---does a good job of
+predicting the held-out portion.  If the model doesn't have enough
+freedom, it can't fit any data well, so it does badly by this measure.
+When the model has too much freedom, it doesn't make very specific
+predictions for new data (or it over-fits the data).  There is a
+``sweet spot'' that balances quality of fit and model freedom, and
+cross-validation finds it.
+
+Let's imagine that the full data set $\data$ is made up of $N$ data
+points or subsets of the data $D_n$.  Each of these $N$ subsets $D_n$
+could comprise, say, ten data points or one data point.  All we need
+is that there be $N$ of them, and that the $N$ be similar in ``size''
+where that word will be defined below.  In symbols,
+\begin{eqnarray}
+\data &\equiv& \setofall{\data_n}{n=1}{N}
+\quad.
+\end{eqnarray}
+From now on we will think of the data $\data_n$ as small
+\emph{subsets} of the whole data set, not \emph{necessarily}
+individual data points.  For each data subset $\data_n$ there is a
+\emph{complementary} or \emph{leave-one-out} data subset
+$\data_{[n]}$, which consists of all the data \emph{except} those in
+$\data_n$.  In symbols,
+\begin{eqnarray}
+\data &=& \data_n \union \data_{[n]}
+\\
+\varnothing &=& \data_n \intersect \data_{[n]}
+\quad,
+\end{eqnarray}
+where $\union$ is the set union operator, $\intersect$ is the set
+intersection operator, and $\varnothing$ is the null set.
+
+...continuing
+\begin{eqnarray}
+\pars_n &\leftarrow& \argmax_\pars p(\data_{[n]}\given\pars)
+\\
+\pcv(\data) &\leftarrow& \prod_{n=1}^N p(\data_n\given\pars_n)
+\quad,
+\end{eqnarray}
+
+...or ``Bayesian'' version
+\begin{eqnarray}
+\pcv(\data) &\leftarrow& \prod_{n=1}^N \int p(\data_n\given\pars)\,p(\pars\given\data_{[n]})\,\dd\pars
+\quad,
+\end{eqnarray}
+where inference proceeded as usual.  The sampling approximation works well here.
+
+...definition of ``size'' for the $\data_n$.
+
+...return to the utility point.  This method works well but makes
+unspecified (and therefore wrong) assumptions about your utility.
+That said, if you don't want to care about your utility, predictive
+properties of the models sure are sensible surrogates.
+
+\section{Informal methods} % WRONG NAME FOR THIS SECTION
+
+...Informally, we often choose among models (effectively) by
+permitting a freedom, fitting for a parameter that controls the
+freedom, and finding that the parameter is very far from the null or
+zero value.  This is not crazy!  It is related to AIC and BIC and etc.
+
+...numbers of ``sigma''!  LHC results as an example.  Detecting a
+faint star as an example.
+
+...note the philosophical point (Gelman etc) that this might always be
+the best thing to do: Find a parameter that joins the two models and
+see where that parameter gets inferred.  Exoplanet example can return
+here; parameter is the exoplanet mass.
+
+\section{No need to decide?}
+
+...Mix your models whenever you can; or carry them all forward.  Reminder
+that the Bayesian evidence tells you how to \emph{mix} models, not
+choose.
+
+...Gelman point can return here too.
+
+\clearpage
+\markright{Notes}\theendnotes
+
+\clearpage
+\begin{thebibliography}{}\markright{References}
+\bibitem[Bovy, Hogg, \& Roweis(2009)]{bovy}
+  Bovy,~J., Hogg,~D.~W., \& Roweis, S.~T., 2009,
+  Extreme deconvolution: inferring complete distribution functions from noisy, heterogeneous, and incomplete observations, 
+  arXiv:0905.2979 [stat.ME]
+\end{thebibliography}
+
+\end{document}

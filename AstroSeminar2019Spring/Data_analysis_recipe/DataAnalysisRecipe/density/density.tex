@@ -1,0 +1,370 @@
+% This file is part of the Data Analysis Recipes project.
+% Copyright 2013 the author.
+
+% to-do
+% -----
+% - write
+% - make examples
+
+\documentclass[12pt,twoside]{article}
+\input{../hogg_style}
+
+% header stuff
+\renewcommand{\MakeUppercase}[1]{#1}
+\pagestyle{myheadings}
+\renewcommand{\sectionmark}[1]{\markright{\thesection.~#1}}
+\markboth{Inferring distributions from noisy measurements}{}
+
+\newcommand{\data}{D}
+\newcommand{\pars}{\theta}
+\newcommand{\cv}{\mathrm{CV}}
+\newcommand{\pcv}{p_{\cv}}
+
+\begin{document}
+\thispagestyle{plain}\raggedbottom
+\section*{Data analysis recipes:\ Inferring distributions \\from noisy measurements\footnotemark}
+
+\footnotetext{The \notename s begin on page~\pageref{note:first},
+  including the license\note{\label{note:first} Copyright 2013 by the
+    author.  You may copy and distribute this document provided that
+    you make no changes to it whatsoever.}  and the
+  acknowledgements\note{It is a pleasure to thank
+      Jo Bovy (IAS),
+      Dustin Lang (CMU),
+      Dan Foreman-Mackey (NYU),
+      Hans-Walter Rix (MPIA),
+      Sam Roweis (deceased), and
+      Bernhard Sch\"olkopf (MPI-IS)
+    for valuable comments and discussions.  This research was
+    partially supported by NASA (ADP grant NNX08AJ48G), NSF (grant
+    AST-0908357), and a Research Fellowship of the Alexander von
+    Humboldt Foundation.  This research made use of the Python
+    programming language and the open-source Python packages scipy,
+    numpy, and matplotlib.}.}
+
+\noindent
+David~W.~Hogg\\
+\affil{Center~for~Cosmology~and~Particle~Physics, Department~of~Physics, New~York~University}\\
+\affil{Max-Planck-Institut f\"ur Astronomie, Heidelberg}
+%% \\[1ex]
+%% Jo~Bovy\\
+%% \affil{Institute for Advanced Study, Princeton}
+%% \\[1ex]
+%% Dustin~Lang\\
+%% \affil{Princeton University Observatory}\\
+%% \affil{Department of Physics, Carnegie Mellon University}
+
+\begin{abstract}
+Frequently we have some repeated measurement of a quantity $Q$, one
+measurement of $Q$ per object in some sample of objects; we often want
+to know the distribution of this quantity in the population from which
+the objects are drawn.  The simplest idea is to make a histogram of
+the measurements, or estimates, of the quantity.  The measurements are
+necessarily noisy, so this empirical histogram of estimates is always
+broader or less informative than the true distribution for $Q$.  If
+each measurement of $Q$ is based on a likelihood function that
+includes an accurate noise model---even in the case that the noise is
+different for every measurement---it is possible to replace the simple
+histogramming with a hierarchical inference that obtains a
+marginalized likelihood (or posterior probability) for the true
+distribution of $Q$ that \emph{would have been observed} in a sample
+with much less noise per measurement.  The hierarchical inference is a
+kind of deconvolution, because it infers a more informative
+distribution from less-informative samples---capitalizing on the
+distribution information in the set of all samples---but it proceeds
+by forward-modeling the data generation process.  We provide some
+examples and more strong advice: Investigators sometimes create even
+\emph{less} informative (broader) proxies for the distribution than
+the empirical histogram of estimates; all such methods are bad.
+\end{abstract}
+
+In astronomy, there is a traditional idea that ``bad data are worse
+than no data''.  I grew up (academically) hearing this phrase over and
+over.  Now, if there is a theme to the \documentnames\ that make up
+this series, it \emph{could} be that ``a lot of bad data is as good as
+a small amount of good data''.  This theme will justified by the
+contents of this \documentname; of course the theme is only factually
+correct when the bad data meet certain requirements, especially about
+our knowledge---or ability to obtain knowledge---about the noise
+contributions that make the bad data bad.
+
+\section{population statistics}
+
+Imagine you have measured the eccentricities of the orbits of a bunch
+of exoplanets, or measured the lengths of a large number of fish, or
+even tested a group of patients for whether they are carying a
+specific disease.  If you are studying the population as a whole, you
+want to know as best as possible the \emph{true distribution} of the
+quantity you are measuring or testing for.  If your measurements are
+perfect (or extremely low in noise) then you don't need to do anything
+sophisticated: Make a histogram of the measured eccentricities or
+lengths, or compute the fraction that test positive for the disease,
+and you are done.  The problem is, in many important situations, your
+data just aren't this good.\note{Hogg: Rutherford quotation about
+  statistics and getting better data, reference, comment.  Ack BS.}
+
+As an introduction to our problem, let's continue with the medical
+example: Imagine that we have a pretty good test for a particular
+disease, such that it's false-positive and false negative rates are
+percent-level.  To get very specific, let's discuss these rates in
+terms of a \emph{likelihood}\note{Hogg: likelihood name rant.}, or a
+probability that the test reports a positive (a ``yes''), symbolized
+by the binary indicator $\hat{Q}=1$ or a negative (a ``no''),
+symbolized by $\hat{Q}=0$, conditional on the patient's true state, of
+either actually having the disease (``sick''), symbolized by the
+binary indicator $Q=1$, or not having the disease (``well''),
+symbolized by $Q=1$.  The likelihood ``function'' is here just a
+$2\times 2$ matrix of probabilities $p(\hat{Q}\given Q)$ in our
+standard probability notation:\note{Hogg: cite probability calculus
+  document here and in references.}
+\begin{equation}\label{eq:testlike}
+\mbox{\begin{tabular}{rc|cc}
+\multicolumn{2}{l|}{$p(\hat{Q}\given Q)$}
+               & ``yes'' & ``no'' \\
+             & & $\hat{Q}=1$ & $\hat{Q}=0$ \\
+\hline
+``sick'' & $Q=1$ & $0.97$ & $0.03$ \\
+``well'' & $Q=0$ & $0.05$ & $0.95$
+\end{tabular}}
+\end{equation}
+This test is a good one, but (of course) not perfect.  It is not clear
+how any doctor or researcher could accurately know the four numbers in
+the likelihood matrix~(\ref{eq:testlike}), but that is a subject
+beyond the scope of this \documentname.\note{Hogg!}
+
+Now imagine that an epidemiologist has a fair sample of 1000 people
+from some population and wants to know the rate of this disease in the
+population.  He or she administers the test to the subjects and finds
+that 56 of the 1000 people test positive (get ``yes'' or $\hat{Q}=1$).
+What can be inferred from this measurement about the \emph{true
+  rate}\note{Hogg: not responsible for any implied meaning of the word
+  ``true''.}  $p(Q=1)$ of the disease (sickness) in the
+population?\note{I am expressing the ``rate'' as a probability here,
+  which is not too confusing, I hope.}
+
+Since the test is pretty good, it is not crazy to consider the
+absolutely simplest estimate: Perhaps the disease rate is about the
+``yes'' rate, or about 54/1000 or 0.054.  (With perhaps an uncertainty
+of plus or minus some error based on the binomial theorem, which would
+be on the order of fifteen percent fractionally, or in absolute terms
+0.007-ish.)  That estimate---0.054---is a bad estimate!  Why?  Because
+the test is really expected to be wrong about five percent of the time.
+
+An even \emph{wronger} estimate (so wrong you might imagine no-one
+would ever make this mistake, but I can cite real-live
+papers\note{Hogg!}) would be to say ``well, the test is wrong about
+five percent of the time, so even some of those 944 `no' ($\hat{Q}=0$)
+answers must be wrong, so the rate must be even \emph{higher} than
+0.054.''  That's \emph{really} wrong; we will come back to its insane
+wrongness below.
+
+A much better estimate is to do what I and my coauthors consistently
+advise in this series of \documentnames: Make a generative
+probabilistic model---a model that gives you a probability
+distribution over possible data\note{Bernhard Sch\"olkopf would tell
+  us that for the model to be good for our purposes we need it to be
+  not just generative but \emph{causal}.  The model should embody our
+  beliefs about the causal processes that created the data.}---and do
+probabilistic inference.  In this case, the simplest model has the
+following two simple assumptions: \textsl{(a)}~We adopt the likelihood
+given in the matrix~(\ref{eq:testlike}) above as being true, or at
+least good enough.  \textsl{(b)}~We imagine that there is a true rate
+or probability of sickness, call it $P_+$, in the population as a
+whole.  The first assumption establishes a likelihood, and the second
+establishes a prior, albeit a strange prior that itself has a
+parameter, $P_+$. This rate $P_+$ is a parameter in the sense that it
+is an unknown in the model.  We have hard-set the likelihood, but we
+don't yet know this probability $P_+$... In Figure~?? we show the
+probabilistic graphical model corresponding to these assumptions.
+
+Now, in this generative model, what is the probability of getting a
+``yes'' in the test?
+\begin{eqnarray}
+p(\hat{Q}=1\given P_+)
+ &=& \sum_{Q=0}^1 p(\hat{Q}=1\given Q)\,p(Q\given P_+)
+\\
+p(\hat{Q}=1\given P_+)
+ &=& p(\hat{Q}=1\given Q=1)\,P_+ + p(\hat{Q}=1\given Q=0)\,[1 - P_+]
+\\
+p(\hat{Q}=1\given P_+)
+ &=& 0.97\,P_+ + 0.05\,[1 - P_+]
+\\
+p(\hat{Q}=1\given P_+)
+ &=& 0.05 + 0.92\,P_+
+\quad,
+\end{eqnarray}
+where appropriate likelihood values have been substituted in.  This is
+a new likelihood, but with the prior---the parameterized prior---used
+to marginalized out the health state of the individual patient.  It is
+a marginalized likelihood, and can be used in inference like any other
+likelihood.  This is a point we will beat to death in this
+\documentname.
+
+In fact the full data set is not one such test result but $N=1000$
+such results $\hat{Q}_n$.  If we assume independence, the total
+likelihood is a product, or the logarithm is a sum:
+\begin{eqnarray}
+D &\equiv& \setofall{\hat{Q}_n}{n=1}{N}\given P_+) 
+\\
+\ln p(D\given P_+) 
+ &=& \sum_{n=1}^N p(\hat{Q}_n\given P_+)
+\\
+\ln p(D\given P_+) 
+ &=& 56\,\ln p(\hat{Q}=1\given P_+) + 944\,\ln p(\hat{Q}=0\given P_+)
+\\
+\ln p(D\given P_+) 
+ &=& 56\,\ln (0.05 + 0.92\,P_+) + 944\,\ln (0.95 - 0.92\,P_+)
+\quad,
+\end{eqnarray}
+where a new ``full-data'' object (set, blob) $D$ is defined, the
+numbers have been substituted in, and the fact that the probabilities
+of $\hat{Q}$ being zero and one must sum to unity (this is a
+combination of likelihoods) has been exploited.  Because this is a
+full-data likelihood, we can optimize it (to get a maximum likelihood
+value fo $P_+$, look at changes in the likelihood with respect to
+$P_+$ to get uncertainties, or multiply by a prior PDF for $P_+$ and
+compute or sample a posterior PDF... In Figure~?? the dependence of
+this likelihood on $P_+$ is shown.
+
+The maximum-likelihood rate in the population is less than 0.007!  It
+is \emph{far} lower than the naive estimate of 0.056.  Why?  Because
+when rates are low, healthy patients are much more likely to get
+scattered into the ``yes'' category than sick patients are to be
+scattered into the ``no'' category.
+
+A few notes: If you play around with this example (and I encourage
+that) you will find that what you conclude is and can be a very strong
+function of what you assume about the likelihood function, which, in
+real situations, you never know precisely.\note{The likelihood
+  function is a quantitative description of your noise model and you
+  almost never have an extremely precise model of your noise.}  The
+maximum-likelihood value for $P_+$ is very close to zero, so the
+``standard error'' doesn't make much sense.  This argues for switching
+to a posterior sampling or a more flexible description of the
+likelihood function to express your uncertainty.  The
+maximum-likelihood rate $P_+$ goes to precisely zero as the number of
+observed ``yes'' values goes below 50.  All these observations are
+relevant and important to what follows, below.
+
+One key idea of this introductory example is that even if your
+likelihood for each object depends on latent variables or model
+parameters for that object that you can't measure precisely, you can
+nonetheless infer properties of the \emph{distribution} of those
+latent variables.  The key idea is that through marginalization, the
+likelihood can be transformed from a set of single-object likelihoods
+that depend on latent variables into a full-data likelihood that
+depends only on population-level variables.  These appear in the
+calculation as parameters of the prior PDF, or
+\emph{hyper-parameters}.  It is this meta-upping from likelihood to
+marginalized likelihood, and from object parameters to population
+hyper-parameters, that makes this analysis \emph{hierarchical}.
+Another key idea of this introductory example is that what you learn
+about the population can be much more precise than what you learn
+about any individual member of the population: The test is only good
+at the few-percent level, but it can measure a very small rate in the
+large population.
+
+\begin{problem}
+How does the uncertainty improve as the number of patients goes up?
+What would the likelihood curve (plotted in Figure~??) look like for a
+population of 10,000 patients, with 530 testing positive?  What would
+be the maximum-likelihood estimate for the rate $P_+$ in this case and
+what would be the standard uncertainty on that?
+\end{problem}
+
+\begin{problem}
+What would have been the maximum-likelihood estimate of the rate $P_+$
+in the problem in this \sectionname\ if, of the 1000 patients, only 44
+tested positive?  What uncertainty would you put on that rate
+estimate?
+\end{problem}
+
+\begin{problem}
+How much would the maximum-likelihood estimate of the rate $P_+$ in the
+problem in this \sectionname\ change if the likeihood values changed
+by one percent?  Consider various one-percent changes.  When you make
+your changes, be sure to keep the normalization correct; what
+combinations of likelihood values in the likelihood matrix must sum to
+unity?
+\end{problem}
+
+\begin{problem}
+In many cases, even the likelihood values in the likelihood matrix
+themselves are badly determined.  What should you do in this case?
+For concreteness, consider a case in which the top-left value in the
+matrix (currently 0.97) could be distributed anywhere between 0.99 and
+0.95.  How do you re-do the analysis and what would you report for the
+population rate $P_+$ in this case of uncertain likelihood matrix?
+Don't forget that as you change the likelihood matrix entry, you must
+change the corresponding one to keep the normalizations right.
+\end{problem}
+
+\begin{problem}
+In the problem in this \sectionname, the standard error on the
+maximum-likelihood estimate for the rate $P_+$ included
+values below zero.  What does that mean, or how would you report
+results in a better way than ``best-fit value plus or minus some error
+bar''?
+\end{problem}
+
+\section{estimators built from estimators}
+
+Now let's move to the more general case, in which measurements are not
+binary but continuous, and we want to infer the distribution of some
+continuous parameter in a population.  Again, to be concrete, we will
+make a particlar example, in this case from astronomy....
+
+...not terrible idea: histogram of maximum-likelihood estimators.
+
+...when can this give the right distribution?
+
+...why will the empirical variance always be larger than the true variance?
+
+...very bad idea: co-add likelihood functions or histogram posterior
+samples.  This is like convolving your noisy data with your errors
+once again!  Mistake made surprisingly often.
+
+...concrete example
+
+\section{hierarchical inference}
+
+...the true disribution is your prior
+
+...use the force (probability calculus), Luke
+
+...how in practice to operate
+
+...concrete example, continued from previous section
+
+...relies strongly on good noise information.
+
+\section{blind deconvolution}
+
+...strict degeneracy
+
+...all problems are blind in some sense---you never have perfect
+knowledge of your noise or likelihood functions.
+
+...jitter model...
+
+\section{using bad data to predict good data}
+
+...use XDQSO data as an example here.
+
+...relies strongly on good noise information for both data sets.
+
+...notes about the fact that accurate information about causality was
+necessary to make this work.
+
+\clearpage
+\markright{Notes}\theendnotes
+
+\clearpage
+\begin{thebibliography}{}\markright{References}
+\bibitem[Bovy, Hogg, \& Roweis(2009)]{bovy}
+  Bovy,~J., Hogg,~D.~W., \& Roweis, S.~T., 2009,
+  Extreme deconvolution: inferring complete distribution functions from noisy, heterogeneous, and incomplete observations, 
+  arXiv:0905.2979 [stat.ME]
+\end{thebibliography}
+
+\end{document}

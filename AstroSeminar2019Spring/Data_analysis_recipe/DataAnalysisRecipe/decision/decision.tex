@@ -1,0 +1,478 @@
+% this file is part of the Data Analysis Recipes project
+% Copyright 2012, 2013 David W. Hogg
+
+% to-do
+% -----
+% - is the second-person stuff annoying?  I think it is.
+% - decide about ``I'' vs ``we'' and any co-author?
+% - fix intro to get to the point faster
+% - swap out the DETF example, which isn't a good one
+% - LTFDFCF argument is too strident
+% - finish zeroth draft
+
+% style notes
+% -----------
+% - ``pdf'' not ``PDF''
+
+\documentclass[12pt,twoside,pdftex]{article}
+\input{./hogg_style}
+
+% header stuff
+\renewcommand{\MakeUppercase}[1]{#1}
+\pagestyle{myheadings}
+\renewcommand{\sectionmark}[1]{\markright{\thesection.~#1}}
+\markboth{Making decisions}{Introduction}
+
+\begin{document}
+\thispagestyle{plain}\raggedbottom
+\section*{Data analysis recipes:\\
+  Making decisions}
+
+\footnotetext{%
+  The \notename s begin on page~\pageref{note:first}, including the
+  license\note{\label{note:first}%
+    Copyright 2012, 2013 David W. Hogg (NYU).  Right now this document
+    (though publicly available) is NOT FOR DISTRIBUTION.  Eventually,
+    and once it is ready, I will release it with the license ``You may
+    copy and distribute this document provided that you make no
+    changes to it whatsoever''.}
+  and the acknowledgements\note{%
+    It is a pleasure to thank
+      Jo Bovy (IAS),
+      Dan Foreman-Mackey (NYU),
+      Dustin Lang (CMU),
+      Phil Marhall (Oxford), and
+      Sam Roweis (deceased)
+    for discussions and comments.  This
+    research was partially supported by the US National Aeronautics
+    and Space Administration and National Science Foundation.}}
+
+\noindent
+David~W.~Hogg\\
+\affil{Center~for~Cosmology~and~Particle~Physics, Department~of~Physics, New York University}\\
+and~\affil{Max-Planck-Institut f\"ur Astronomie, Heidelberg}
+%% \\[1ex]
+%% A. Nother Author
+%% \affil{Oxford University}
+
+\begin{abstract}
+Probabilistic inference at its best gives probabilistic information
+about parameters and models.  In many cases of importance---as with
+making a discovery or experimental design or purchasing or delivery of
+results---it is necessary to make a hard decision or choice.  It is
+almost never the right move to choose the \emph{most probable} model
+or option; it is rare that the most probable is the option that
+delivers the most benefit to the decider.  Instead the decider ought
+to specify a utility function and work to optimize expected utility,
+or minimize expected loss, or minimize maximal loss.  In real-world
+situations of building experiments or operating an organization, to be
+generally useful the utility must be specified in (the equivalent of)
+currency (dollar) units.  Whether the decision is about which
+observation to make next, which of several hypotheses to reject, or
+what to write in a paper title and abstract, the employed utility
+function should be an approximation to the decider's \emph{long-term
+  future discounted free cash flow}.
+\end{abstract}
+
+\section{You never decide on probability alone}
+
+Imagine you have taken imaging of a patch of the sky and you want to
+know the brightness of a particular star, or you have performed a
+survey of consumers and you want to know what fraction of them prefer
+a particular product.  In each case you have noisy data, which
+contains noisy information about the quantity you care about.  The
+scientifically responsible thing to report is the full likelihood
+function or the posterior probability distribution
+function\endnote{Because the computation of a posterior pdf involves
+  additional assumptions over and above the assumptions made in
+  computing a likelihood, if you release only posterior pdfs, you must
+  always \emph{also} report the prior pdf you employed.  I discuss
+  this more in other contributions in this series.} (pdf) for the
+quantity of interest---the star brightness or the consumer fraction.
+Only these full functions properly transmit the full information
+content of the measurement.
+
+Nonetheless, in various situations, it is necessary to deliver \emph{a
+  particular value} for the quantity of interest.  For example, you
+might be calculating a telescope exposure time (for your next
+measurement) or deciding how many units of a product to ship to a
+store.  In each case, you have to use \emph{some value} to perform the
+calculation.  Well, strictly speaking, you don't \emph{have} to use a
+single value to do this calculation, but in practice it is often the
+only practicable way.  For example, sometimes you have a superior
+officer who demands a number, or a referee who insists that you put a
+number in the abstract of your paper.  When you are in this situation,
+what number should you report or use?  The rules of probabilistic
+inference \emph{do not answer this question}.  The rules of
+probabilistic inference only tell you how to manipulate probabilities
+and frequencies for data and parameters.  For example, they don't tell
+you whether to report the mode, mean, or median of the posterior pdf
+or the maximum of the likelihood or some percentile upper or lower
+limit.  (And they \emph{certainly} don't tell you how to adjust if the
+likelihood or posterior is peaked somewhere that seems likely to get
+you fired, demoted, ridiculed, or bankrupt.\note{Some would argue that
+  you are \emph{not allowed} to modify what you say about your results
+  in order to avoid embarrassment or equivalent problems.  But in
+  fact, if you look inside, you realize you do it all the time!  When
+  your result is perfectly in line with previous results, you give the
+  central value and an error bar.  When your result is much higher,
+  you might give the central value and the error bar, but you will
+  \emph{also} give the probability interval corresponding to the
+  overlap with the previous result.  This is not just \emph{done} but
+  \emph{essential}.  It would be irresponsible \emph{not} to modify
+  how you deliver results in response to concerns about believability,
+  sensibleness, consistency, and impact.})
+
+Similarly, in discovery or detection: Do you take ``three sigma'' or
+``five sigma'' or ``ten'' to be the threshold?  Probabilistic
+inference does not answer this question either.\note{cite MODEL
+  SELECTION \documentname} If it is bad for you to report the
+existence of something that isn't there, you will set your threshold
+high.  If it is important that you \emph{not miss} something that
+\emph{is} there, you will set it low.  As these examples illustrate,
+it is your \emph{utility}---what is useful to you or important to
+you---that informs your decision, not just the results of the
+probabilistic inference.
+
+Most importantly, if you are trying to decide \emph{between models} or
+\emph{between hypotheses}, and these models have different posterior
+probabilities (possibly marginalized over all parameters) how do you
+decide?  Once again, the rules of probabilistic inference do not tell
+you which model to choose.\note{There is a huge literature and many
+  methods devoted to computing ``Bayes factors'' or fully marginalized
+  likelihoods or posterior probabilities for parameterized models.
+  This is all very valuable work, but if you take that massive
+  computational effort and then just choose the \emph{more probable
+    model}, you are probably making a mistake.}  You can choose the
+more probable model, but that is rarely \emph{required}.  It is often
+not even sensible: What if model $A$ is slightly more probable, but
+requires thousands of CPU-years to compute, whereas model $B$ is
+slightly less probable but you can compute it on your mobile phone?
+For many purposes, model $B$ would be the model to choose; it depends
+on the \emph{use} to which the model is being put.  Economic factors
+(and we will get very specific about what those factors are) must play
+a role.
+
+Finally, and as we have argued elsewhere\note{where?}, if you can
+\emph{possibly avoid} making a decision you should.  The laws of
+probabilistic inference tell you how to \emph{mix} the models or
+marginalize over unknowns; if you can live with a mixture you should.
+Only decide when you have no choice, as when you have to put a number
+in an abstract, type a line in a published table or chart, or cut
+metal in an experiment or instrument.  It is only then---when
+irreversible action is imminent---that choice is \emph{really}
+required.
+
+\section{You have a scalar objective}
+
+Given that the world only provides probabilistic or noisy information,
+the fact that any rational actor (think ``brilliant robot''\note{The
+  rational-inference robot is a very useful piece of
+  thought-experiment equipment introduced by \citet{jaynes}, ch.~1 and
+  thereafter.})  can make any hard choice---decide anything---results
+from the fact that he or she (or henceforth ``it'') has some kind of
+objective function that it is optimizing.  Even a Bayesian actor that
+chooses to report from a posterior pdf the most probable parameter
+values is effectively adopting ``probability'' as it's objective.  A
+frequentist actor that chooses to report the maximum-likelihood values
+is effectively adopting ``likelihood'' as its objective.  For general
+situations, both of these choices of objective is absurd; I argued
+this above and will return to it below.\note{More soon, but
+  briefly it is easy to see that the likelihood is a bad objective:
+  The likelihood can be maximal in a location in parameter space you
+  know to be ruled out by theoretical considerations or else previous
+  experiments.}
+
+...You must have an objective... probabilists can only optimize the
+\emph{expected value} (or other posterior statistic of) that
+objective...
+
+The frequentist actor is much more constrained than the Bayesian
+actor, in decision making and in almost all areas of inference---as we
+have argued elsewhere---frequentism is a hard way to live.\note{Hogg
+  cite various.}  In frequentism, because there is no prior, there is
+no \emph{measure} in the parameter space; it is not possible to do
+integrals over the parameter space.  This follows from the problem
+that there is no \emph{prior PDF}, and it is the prior PDF that serves
+the role of a measure on the parameter space; it is always in the
+integral over parameters.  The strict frequentist actor can only look
+at the extrema of the utility function within the group or bag of
+models deemed ``good'' by the likelihood function.  The frequentist
+actor can only try to either \emph{maximize} utility or upside within
+the ``allowed'' models (allowed according to some kind of threshold on
+the likelihood function\note{Frequentism is a hard way to live, but it
+  sure isn't fully objective; the frequentist actor must, like the
+  Bayesian, write down a (necessarily) non-objective likelihood
+  function, and then \emph{also} decide what constitutes, within that
+  likelihood model, a ``good'' or ``acceptable'' model.  This decision
+  is not as complex and rich and problematic as the decision about the
+  prior PDF, but it isn't trivial and it definitely isn't objective.})
+or \emph{minimize} loss or downside within that bag of allowed models.
+There is no sense, in frequentism, of the ``expected value'' of the
+utility given the model space; that expectation can only be computed
+by integrating over the model space.
+
+...Might want to maximize completeness \emph{and} minimize
+false-positive rate... All objectives conflict at some point...
+
+...Concept of the convex sum... What is that?..
+
+...Note that for many investigators there is an ambiguity between
+prior and utility; they are used similarly in
+decision-making... Indeed there is a product ambiguity between them...
+
+\section{Money must be involved}
+
+% The DETF example doesn't bring to light the most important issue;
+% after all, the existence of any single mission creates an exchange
+% rate for marginal exchanges between money and DETF.  As for the
+% different missions taking different times, that is about the
+% discount rate, not about money \notenglish{per se}.
+
+Back in 2005-ish, the cosmology community underwent a soul-searching
+exercise about future projects intended to investigate the nature of
+\emph{dark energy}, or the mechanical cause of the late-time
+acceleration of the Universe's expansion.  The Dark-Energy Task
+Force (DETF) ended up recommending that projects be ranked on the
+basis of their ability to constrain two dark-energy parameters, $w_0$
+and $w_a$.  In particular, they argued that the relevant scalar or
+utility or figure of merit (FoM) to consider is the inverse of the
+area inside the 95-percent confidence interval (implicitly a
+likelihood contour) in the $w_0$--$w_a$ plane.\note{\cite{detf}.}
+
+In many ways this was a breakthrough: A committee recommends a
+quantitative method for comparing (necessarily expensive, complex, and
+lengthy) projects, and describes that quantitative method in terms of
+merit or utility.  For this the DETF deserves to be commended.
+Furthermore, the proposed FoM scalar relates to the informaton content
+in the data delivered by the experiments, so it is eminently sensible.
+
+However, there is an equally valid point of view in which this
+recommendation was \emph{useless}.  The reason is that although the
+FoM permits the community to compare projects in terms of information
+delivered about dark energy, no two projects deliver the same FoM, no
+two projects have the same total cost, and no two projects deliver
+results at the same point in the future.  If one project delivers an
+FoM of 1200, costs $8\times 10^6$~USD, and takes four years, and
+another delivers an FoM of 1950 and costs $17\times 10^6$~USD, and
+takes 3.5 years, how are we to compare them?  We need to be able to
+understand the trade-offs between money, FoM, and time.  And sure
+enough, although the DETF was able to classify projects into
+categories (FoM bins), it was not able to rank the relative value of
+very qualitatively different projects.
+
+...similarly spectroscopic fibers in \project{SDSS}...
+
+...Automated decision making for follow-up...
+
+...Objective experimental design...
+
+Fundamentally this currency requirement flows from the point that
+there are always many \emph{qualitatively different choices}.  Even in
+a decision as trivial as what to report as the result of a
+measurement: You don't just have to decide what value to report, you
+also have to decide whether you are going to \emph{just} report a best
+value, or a best value and an error bar, or a best value and a set of
+confidence intervals, or an upper limit.  Each of these choices
+requires different amounts of ink and different caveats and
+effectively stakes different claims.  Effectively, they come at
+different costs and bring different benefits.  They can only be
+compared if they can be put on the same footing; that footing is
+fundamentally economic.
+
+\section{Utility calculations}
+
+% coordinate this with the above ``scalar objective'' section
+
+...there are two issues: How to compute your utility for some outcome,
+and then what to do with those computations given a probabilistic
+inference or prediction...
+
+...minimax...
+
+...posterior utility maximization\note{There is an excellent---if
+  idiosyncratic---discussion of decision-making in a probabilistic
+  context in \cite{jaynes}, chs.~13 and 14.}...
+
+\section{Why is posterior probability a bad objective?}
+
+...first a reminder of why likelihood is a bad objective...
+
+...the idea of a narrow high peak and a very wide lower peak...  This
+is the problem solved by marginalization (Bayes evidence) but then you
+have to decide on the \emph{domain} over which you do that integral...
+
+...the idea of model \emph{cost}...
+
+...posterior probability might be a good objective in the (very rare)
+situation that the \emph{only} audience or use is scientific, and the
+priors are extremely informative...
+
+\section{Long-term future discounted free cash flow}
+
+The question remains: How do you go about writing down, in a
+quantitative way---or calculating---your utility?  Interestingly, the
+\emph{calculating} of your utility is going to turn out to be
+impossible, for very deep reasons, so we will always have to live with
+brutal approximations.  Let's start with an easier question: What
+\emph{is} your utility?
+
+It turns out this question \emph{has} been
+answered in the realm of \emph{business}\note{I first learned about
+  the LTFDFCF during a short stint as a consultant at the US internet
+  company \project{Google}, where it was explicitly stated as the
+  utility.  Maximization of the LTFDFCF was stated as the prime
+  objective of the company.  (Now that I write these words, their
+  specificity makes me wonder if I am somehow misremembering this.)},
+not science (and definitely not statistics):
+The objective of any entity---person or organization---is to maximize
+its \emph{Long-Term Future Discounted Free Cash Flow} (LTFDFCF).
+Surprised?  The thing you should \emph{really} be surprised about is
+that its generality---the applicability of the LTFDFCF to science and
+hypothesis testing in intellectual areas---has not been widely
+recognized.  Here we break apart this concept, explain it, and argue
+for it.
+
+\paragraph{Long-term future:}
+If we are rational, we care not just about what happens \emph{right
+now} but about what kinds of gains (and losses) we will make in the
+future.  Most of us are willing to take short-term losses for larger
+long-term gains.  The present is key, but we are working towards a
+future.  What future?  The next five minutes or the next thousand
+years?  It turns out that the answer to this question depends on the
+\emph{confidence of our predictions}...
+
+...In scientific terms, this means...
+
+\paragraph{Discounted:}
+Okay, so we have to consider outcomes into the long-term future.  That
+doesn't mean that we ignore the present; indeed, there is a full
+``integral'' of the utility into the future; that integral is kept
+finite by including a \emph{discount rate}.  The basic principle is
+that benefit that accrues in two months is more valuable than an equal
+benefit (in straight dollar terms) that accrues in twenty years...
+
+...Subjectivity of the discount rate...
+
+...In scientific terms, this means...
+
+\paragraph{Free cash flow:}
+Heuristically, \emph{free cash flow} is revenue less the expenses
+incurred \emph{in order to generate that revenue}.  The expenses here
+include short-term expenditures and amortization of \emph{past}
+long-term capital expenses on equipment or facilities that were used
+to generate the revenue.  This might sound a lot like \emph{profit}
+but it differs in an important way: Profit is revenue less all
+expenses, including \emph{present} long-term capital expenses that are
+being used to create new opportunities for the future.  Profit is
+always less than free cash flow, because more expenses are being
+counted against profit than against free cash flow; indeed there are
+companies with no profit but plenty of free cash flow; these are
+generally companies that are building large new facilities or
+capabilities.  You don't want to count these present-day long-term
+capital expenditures against your utility, because the capapbility of
+making these long-term investments is precisely \emph{why} we are
+doing what we do.
+
+In human terms, you might run a lemonade stand on a street corner to
+raise money so you can start a juice bar downtown.  If you are
+successful, you will use the cash flow from the lemonade stand to
+build the juice bar.  In assessing the success of your lemonade stand,
+you want to compare the lemonade revenue with the lemonade expenses;
+the fact that you are spending every penny of that cash flow building
+a new business shouldn't ``count against'' the success of the lemonade
+stand.  Hence the goal of the lemonade stand was to produce free cash
+flow, not profit \emph{per se}.\note{I think somehow profit is for
+  \emph{investors} whereas cash flow is for \emph{owners}.  Not that
+  there is obviously a clear distinction between these.}
+
+In scientific terms, the idea is that you want to get the most benefit
+from your project or your inference, given the cost \emph{of that
+  project}.  That's the scientific equivalent of free cash flow.
+
+\section{One simple example}
+
+...Concrete example: \project{Astrometry.net}
+
+\section{Discussion and objections}
+
+This \documentname\ makes only one point: That probabilistic inference
+does not tell you what to \emph{do}, it only puts probabilities on
+parameters, hypotheses, models, and future possible data.  If you want
+to know what to \emph{do}, you have to marginalize over outcomes times
+some kind of utility, and that utility ought to be a long-term future
+discounted free cash flow (LTFDFCF), specified in units convertible to
+currency.  Apparently this is shocking to many!  Indeed I get many
+objections, most of which fall into one of a few camps:
+
+\paragraph{Objection 1: This is so subjective!}
+Yes, it is subjective.  But so is all of probabilistic reasoning.  You
+are making subjective judgements when you decide what data to use,
+what models to consider, how to model the noise, what approximations
+to make, and (as the frequentists remind us\note{Hard-core
+  frequentists---with whom I have no serious disagreements (it is a
+  hard way to live, but a noble way to live, as I discuss [IN WHAT
+    DOCUMENT])---complain that all Bayesian methods must be wrong
+  because they involve the subjective step of multiplying by a prior.
+  The frequentists are not wrong: The prior is \emph{absolutely}
+  subjective.  But so are the up-front model choices and
+  approximations made in every inference by everyone, so in my view
+  the prior pdf is, if not the least subjective part, certainly not
+  the only.} when you set your prior pdfs.  All of these steps in an
+inference require personal judgement.  They can be analyzed and
+debated but ultimately these decisions \emph{already involve utility},
+even before we get to the decision-making part of the problem.
+
+\paragraph{Objection 2: \emph{Money?} What about happiness or love?}
+Why are you so crass as to express your utility in terms of money (or
+time or oil any other commodity) rather than something on a higher
+plane, such as happiness or love?  The short answer is that the
+fundamental assumption necessary for the LTFDFCF to be the correct
+objective, is \emph{not} that money can buy happiness or that
+happiness or love is convertible to money or other exchangeable
+commodities.  The fundamental assumption is the much more limited
+assumption that there is \emph{marginal fungibility}.
+
+Say you are working late and you need to get home.  You are just about
+to leave when a colleague says ``Can you stay 15 minutes longer?''
+You say ``No, I want to get home to see my family.''  Your colleague
+says ``If you stay for 15 minutes longer, I will pay you $X$.''  If
+you can identify---even approximately---the money value $X$ for which
+you would stay the extra 15~minutes, then you can measure a
+translation between happiness (or duty or love) and LTFDFCF.  Aside
+from the scenario being a bit creepy, this is the only assumption we
+need to make to work in currency units, or to make marginal
+translations between happiness, love, and LTFDFCF: It only needs to be
+the case that you would make a small change to your behavior for an
+identifiable amount of cash.
+
+The required fungibility is \emph{marginal} simply because in any
+individual decision or inference, the expected utilities at stake are
+all small (relative to, say, the expected LTFDFCF you will generate in
+your entire lifetime).  If you get into situations of massive expected
+utilities (life-changing changes like marriage and having kids and
+things like that), marginal transfer of LTFDFCF can start to break
+down as a useful or useable model.
+
+\paragraph{Objection 3: No-one knows her or his utility!}
+This is absolutely true and fair!  Indeed, the word ``long-term'' in
+the LTFDFCF is itself an expression (as I mention above) that the
+utility is impossible to compute precisely (or accurately).
+
+\clearpage
+\markright{Notes}\theendnotes
+
+\clearpage
+\begin{thebibliography}{}\markright{References}\raggedright
+\bibitem[Dark Energy Task Force(2006)]{detf}
+  Dark Energy Task Force, 2006,
+  ``Report of the Dark Energy Task Force'', arXiv:astro-ph/0609591
+\bibitem[Hogg \etal(2010a)]{straightline}
+  Hogg,~D.~W., Bovy,~J., \& Lang,~D., 2010a,
+  ``Data analysis recipes:\ Fitting a model to data'', arXiv:1008.4686
+\bibitem[Jaynes(2003)]{jaynes}
+  Jaynes,~E.~T., 2003,
+  \textit{Probability theory: the logic of science} (Cambridge University Press)
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+	<script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-MML-AM_SVG"></script>
+  <style>
+    body { margin:0;position:fixed;top:0;right:0;bottom:0;left:0; }
+   
+    .options {
+      margin-top: 45px;
+      float:left; 
+      text-align: center;
+    }
+    
+    .title {
+      text-align: center;
+      font-size: 16pt;
+      text-decoration: underline;
+    }
+    
+    .btn {
+      float:center;
+    }
+    
+    .slidercontainer {
+       float:center; margin-top: 15px;
+    }
+    
+    .slider {
+      text-align: center
+    }
+    
+    .slidertext {
+      font-size=20; 
+      text-align: center
+    }
+    
+    .axis text {
+      font-size: 12pt;
+    }
+    .axis.label {
+      font-size: 20pt;
+    }
+    
+    
+  </style>
+
+</head>
+
+<body>
+  <div id="chart"  style="width: 600px; float:left"></div>
+  <div id="options" style="width: 250px; height: 450px; float:left">
+  	<div class="options" style="width:250px; height:10px;">
+	  	<p class="title" id="fittext">Fitting: y = m x + b</p>
+   		<div class="buttoncontainer btn" style="width: 250px; margin-top: 15px;">
+    		<button class="btn" type="button" id="fitbutton" style="width: 170px;">Fit y = m (x-175) + b instead</button>
+	    </div>
+    	<div class="slidercontainer" style="width:250px; height: 55px;">
+	  		<input style="width: 130px;" type="range" min="-50" max="250" value="50" class="slider" id="bslider">
+    		<p class="slidertext">b: <span id="bvalue"></span></p>
+  		</div>
+  		<div class="slidercontainer" style="width: 250px; float:left;">
+	  	  <input style="width: 130px;" type="range" min="0.9" max="2.8" value="2.24" step="0.05" class="slider" id="mslider">
+    		<p class="slidertext">m: <span id="mvalue"></span></p>
+  		</div>
+      <div class="checkboxcontainer" style="width: 250px; float:left;">
+        <input class="checkbox" id="errorCheckBox" type="checkbox"><span style="width:160px;display:inline-block;text-align:left;margin-left: 5px;">Display error bars</span></br>
+        <input class="checkbox" id="outlierCheckBox" type="checkbox"><span style="width:160px;display:inline-block;text-align:left;margin-left: 5px;">  Display outliers</span></br>
+        <input class="checkbox" id="chi2CheckBox" type="checkbox"><span style="width:160px;display:inline-block;text-align:left;margin-left: 5px;">  Display \(\\\chi^2\) <span id="chi2value"></span></span>
+      </div>
+  	</div>
+ 	</div>
+
+  <script>
+    // Dimensions of the plot window
+    var outerWidth = 600;
+    var outerHeight = 450;
+    var margin = { left: 100, top: 35, right: 15, bottom: 60 };
+    var circleRadius = 5.5;
+    var circleColor = d3.schemeCategory10[0];
+    var pivotRadius = 5;
+    var pivotColor = d3.schemeCategory10[1];
+    var lineColor = "black";
+    var xColumn = "x";
+    var yColumn = "y";
+    var yerrColumn = "sigma_y";
+    var xAxisLabelText = "x";
+    var xAxisLabelOffset = 50;
+    var yAxisLabelText = "y";
+    var yAxisLabelOffset = 55;
+
+    var innerWidth  = outerWidth  - margin.left - margin.right;
+    var innerHeight = outerHeight - margin.top  - margin.bottom;
+
+    var svg = d3.select("#chart").append("svg")
+      .attr("width", outerWidth)
+      .attr("height", outerHeight);
+    var g = svg.append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    var xAxisG = g.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + innerHeight + ")")
+		// Not sure why appending to xAxisG does not work, but it doesn't
+    g.append("text")             
+      .attr("transform",
+            "translate(" + (innerWidth/2) + " ," + 
+                           (innerHeight + xAxisLabelOffset) + ")")
+      .style("text-anchor", "middle")
+      .attr("class", "x axis label")
+      .text(xAxisLabelText);
+    var yAxisG = g.append("g")
+      .attr("class", "y axis");
+    g.append("text")             
+      .attr("transform",
+            "translate(" + (-yAxisLabelOffset) + " ," + 
+                           (innerHeight/2) + ") rotate(-90)")
+      .style("text-anchor", "middle")
+      .attr("class", "y axis label")    
+      .text(yAxisLabelText);
+
+    var xScale = d3.scaleLinear()
+      .range([0, innerWidth]);
+    var yScale = d3.scaleLinear()
+      .range([innerHeight, 0]);
+
+    var xAxis = d3.axisBottom(xScale)
+     .ticks(5)
+     .tickFormat(d3.format(".0f"));
+    var yAxis = d3.axisLeft(yScale)
+     .ticks(5)
+     .tickFormat(d3.format(".0f"));
+    
+    function straightline(x,m,b,xz){
+      return m*(x-xz)+b;
+    }
+    
+    var outlierbutton;
+    function chi2(data,m,b,xz){
+      var tdata;
+      if ( outlierbutton && outlierbutton.checked ) {
+        tdata= data;
+      } else {
+        tdata= data.filter(d => d.id > 4);
+      }
+      return tdata.reduce((u,v) => u+Math.pow((v.y-m*(v.x-xz)-b)/v.sigma_y,2),
+  	                      Math.pow((data[0].y-m*(data[0].x-xz)-b)/data[0].sigma_y,2));
+	  }
+    
+    function render(data){
+      xScale.domain([0,1.1*d3.max(data, function (d){ return d[xColumn]; })]);
+      yScale.domain([0,1.1*d3.max(data, function (d){ return d[yColumn]; })]);
+
+      xAxisG.call(xAxis);
+      yAxisG.call(yAxis);
+
+      // Add data points: inlier
+      indata= data.filter(d => d.id > 4);
+      var circles = g.selectAll("circle.inlier").data(indata);
+      circles.enter().append("circle")
+      		.attr('class', 'inlier')
+          .attr("r", circleRadius)
+          .attr("fill", circleColor)
+        .merge(circles)
+          .attr("cx", function (d){ return xScale(d[xColumn]); })
+          .attr("cy", function (d){ return yScale(d[yColumn]); });
+
+      circles.exit().remove();
+      
+      // outliers
+      outdata= data.filter(d => d.id <= 4);
+      var outcircles = g.selectAll("circle.outlier").data(outdata);
+      outcircles.enter().append("circle")
+       		.attr('class', 'outlier')
+      		.style("visibility","hidden")
+          .attr("r", circleRadius)
+          .attr("fill", circleColor)
+        .merge(outcircles)
+          .attr("cx", function (d){ return xScale(d[xColumn]); })
+          .attr("cy", function (d){ return yScale(d[yColumn]); });
+      outcircles.exit().remove();      
+      
+      // Add errorbars
+      var elines = g.selectAll('line.error').data(indata);
+      elines.enter()
+    		.append('line')
+    		.attr('class', 'error')
+      	.style("stroke",circleColor)
+        .style("stroke-width",2) 
+      	.style("visibility", "hidden")
+  		.merge(elines)
+    		.attr('x1', function(d) { return xScale(d[xColumn]); })
+    		.attr('x2', function(d) { return xScale(d[xColumn]); })
+    		.attr('y1', function(d) { return yScale(d[yColumn] + d[yerrColumn]);})
+    		.attr('y2', function(d) { return yScale(d[yColumn] - d[yerrColumn]);});
+
+      var eolines = g.selectAll('line.oerror').data(outdata);
+      eolines.enter()
+    		.append('line')
+    		.attr('class', 'oerror')
+      	.style("stroke",circleColor)
+        .style("stroke-width",2) 
+      	.style("visibility", "hidden")
+  		.merge(eolines)
+    		.attr('x1', function(d) { return xScale(d[xColumn]); })
+    		.attr('x2', function(d) { return xScale(d[xColumn]); })
+    		.attr('y1', function(d) { return yScale(d[yColumn] + d[yerrColumn]);})
+    		.attr('y2', function(d) { return yScale(d[yColumn] - d[yerrColumn]);});
+
+      var fitmxb= true;
+      var m = Math.random()*1.9+0.9;
+      var b = Math.random()*300-50.;
+      var refxz= 175.;
+      var refb= 400;
+      var xz= 0.;
+      var x1 = 10;
+      var x2 = 280;
+      var y1 = straightline(x1,m,b,xz);
+      var y2 = straightline(x2,m,b,xz);
+      // Add fit line
+      var line= g.append("line")
+        .style("stroke",lineColor)
+        .style("stroke-width",3)
+        .attr("x1", xScale(x1))
+        .attr("y1", yScale(y1))
+        .attr("x2", xScale(x2))
+        .attr("y2", yScale(y2)); 
+    
+      // Add the pivot
+      var pivot= g.append("circle")
+      	.style("fill",pivotColor)
+      	.attr("cx",xScale(xz))
+      	.attr("cy",yScale(b))
+      	.attr("r",pivotRadius);
+      
+      // Add the chi2 label
+      var chi2label = document.getElementById("chi2value");
+      chi2label.innerHTML = `= ${chi2(data,m,b,xz).toFixed(2)}`;
+      chi2label.style.visibility= "hidden";
+      
+      // Add sliders
+      function update_line(){
+        y1= straightline(x1,m,b,xz);
+        y2= straightline(x2,m,b,xz);
+        line.attr("y1",yScale(y1));
+        line.attr("y2",yScale(y2));
+        pivot.attr("cy",yScale(b));
+        // Update chi2
+        chi2label.innerHTML = `= ${chi2(data,m,b,xz).toFixed(2)}`;
+      }
+
+      var sliderb = document.getElementById("bslider");
+      sliderb.value= b;
+	    var outputb = document.getElementById("bvalue");
+			outputb.innerHTML = sliderb.value;
+		  sliderb.oninput = function() {
+        if ( fitmxb ) {
+	        b = +this.value;        
+        } else {
+          b = +this.value + refb;        
+        }
+    	  outputb.innerHTML = Math.round(b);
+        update_line();
+		  }
+      var sliderm = document.getElementById("mslider");
+      sliderm.value= m;
+	    var outputm = document.getElementById("mvalue");
+			outputm.innerHTML = sliderm.value;
+		  sliderm.oninput = function() {
+    	  outputm.innerHTML = this.value;
+        m = +this.value;
+        update_line();
+		  }
+      
+      // Add button to toggle fit between y = m x + b and y = m (x-175) +b
+      var fitbutton = document.getElementById("fitbutton");
+      var fittext = document.getElementById("fittext");
+      fitbutton.onclick = function() {
+        m = Math.random()*1.5+1.3;
+        sliderm.value= m;
+     	  outputm.innerHTML = m.toFixed(2);
+        b = Math.random()*150-50.;
+        sliderb.value= b;
+				if ( fitmxb ) {
+          fitmxb = false;
+	        xz= refxz;
+          b = b+refb;
+					fitbutton.innerHTML = "Fit m x + b instead";
+					fittext.innerHTML = `Fitting: y = m (x-${refxz}) + b`;
+        } else {
+          fitmxb = true;
+          xz= 0;
+    		  fitbutton.innerHTML = `Fit y = m (x-${refxz}) + b instead`;
+					fittext.innerHTML = "Fitting: m x + b";
+        }
+	    	outputb.innerHTML = Math.round(b);
+        pivot.attr("cx",xScale(xz));
+        update_line();
+		  }
+      
+      // Add checkbox to show the errors
+      var errorbutton = document.getElementById("errorCheckBox");
+      errorbutton.onclick = function() {
+    	  if ( errorbutton.checked ) {
+          g.selectAll('line.error')
+            .style("visibility", "visible");
+          if ( outlierbutton.checked ) {
+	          g.selectAll('line.oerror')
+  	          .style("visibility", "visible");        
+          }
+        }
+        else {
+          g.selectAll('line.error')
+            .style("visibility", "hidden");         
+          if ( outlierbutton.checked ) {
+          g.selectAll('line.oerror')
+            .style("visibility", "hidden");         
+          }
+        }
+		  }
+      
+      // Add checkbox to show the outliers, button defined above chi2
+      outlierbutton = document.getElementById("outlierCheckBox");
+      outlierbutton.onclick = function() {
+    	  if ( outlierbutton.checked ) {
+          g.selectAll('circle.outlier')
+            .style("visibility", "visible");
+          if ( errorbutton.checked ) {
+          	g.selectAll('line.oerror')
+            .style("visibility", "visible");         
+          }
+        }
+        else {
+          g.selectAll('circle.outlier')
+            .style("visibility", "hidden");  
+          if ( errorbutton.checked ) {
+          	g.selectAll('line.oerror')
+            .style("visibility", "hidden");         
+          }          
+        }
+        // Update chi2
+        chi2label.innerHTML = `= ${chi2(data,m,b,xz).toFixed(2)}`;
+		  }
+      
+      // Add checkbox to show chi^2
+      var chi2button = document.getElementById("chi2CheckBox");
+      chi2button.onclick = function() {
+    	  if ( chi2button.checked ) {
+          chi2label.style.visibility= "visible";
+        }
+        else {
+          chi2label.style.visibility= "hidden";       
+        }
+		  }
+      
+    }
+    
+    // Parse file
+    function row(d){
+      return {
+          id: +d["# index "],
+  	      x: +d[" x "],
+    	    y: +d[" y "],
+      	  sigma_y: +d[" sigm_y"]};
+    }
+    
+    var data_yerr_url= "https://raw.githubusercontent.com/davidwhogg/DataAnalysisRecipes/master/straightline/src/data_yerr.dat"
+    
+	d3.request(data_yerr_url)
+    .mimeType("text/delimiter-separated-values")
+    .response(function(xhr) { return d3.dsvFormat("&").parse(xhr.responseText, row); })
+    .get(render);
+    
+  </script>
+</body>

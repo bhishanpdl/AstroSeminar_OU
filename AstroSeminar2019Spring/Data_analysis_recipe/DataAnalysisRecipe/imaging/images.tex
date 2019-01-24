@@ -1,0 +1,146 @@
+% this file is part of the Data Analysis Recipes project
+% Copyright 2012 David W. Hogg
+
+\documentclass[12pt,twoside,pdftex]{article}
+\input{./hogg_style}
+
+% header stuff
+\renewcommand{\MakeUppercase}[1]{#1}
+\pagestyle{myheadings}
+\renewcommand{\sectionmark}[1]{\markright{\thesection.~#1}}
+\markboth{Extracting information from images}{Introduction}
+
+\begin{document}
+\thispagestyle{plain}\raggedbottom
+\section*{Data analysis recipes:\\
+  Extracting information from images\footnotemark}
+
+\footnotetext{%
+  The \notename s begin on page~\pageref{note:first}, including the
+  license\note{\label{note:first}%
+    Copyright 2012 David W. Hogg (NYU).  Right now this document
+    (though publicly available) is NOT FOR DISTRIBUTION.  Eventually,
+    and once it is ready, I will release it with the license ``You may
+    copy and distribute this document provided that you make no
+    changes to it whatsoever''.}
+  and the acknowledgements\note{%
+    It is a pleasure to thank
+      Jo Bovy (IAS),
+      Dan Foreman-Mackey (NYU),
+      Hans-Walter Rix (MPIA),
+      and Dan Weisz (UW)
+    for discussions and comments.  This
+    research was partially supported by the US National Aeronautics
+    and Space Administration and National Science Foundation.}}
+
+\noindent
+David~W.~Hogg\\
+\affil{Center~for~Cosmology~and~Particle~Physics, Department~of~Physics, New York University}\\
+and~\affil{Max-Planck-Institut f\"ur Astronomie, Heidelberg}
+%% \\[1ex]
+%% A. Nother Author
+%% \affil{Oxford University}
+
+\begin{abstract}
+Like, so whatever.
+\end{abstract}
+
+\section{What is an image?}
+
+... Images are intensity maps, not grids of flux buckets.  The
+intensity field is a quantum wave function, which is collapsed at the
+detector surface, resulting in photon--electron conversions and
+thereby detections.
+
+... What does it mean for an image to be band-limited?
+
+... The ``flux bucket'' image leads to abominations like
+\textsl{Drizzle}, where photons in an image are ``poured'' into
+``pixel buckets'' in a different coordinate grid.  In Band-limited
+imaging, methods for interpolation perform the same task without loss
+of resolution but they are only easy to see in the intensity map
+formalism.
+
+... Intensity is a conserved quantity; there are many consequences of
+this, some of them obvious, some of them non-trivial but I am not sure
+which is which.  You can't make the blue sky brighter with normal
+transparent optics!  And etc.  Telescopes work by converting position
+diversity at fixed direction into direction diversity at fixed
+position.  All this happens at fixed (or actually slightly reduced)
+intensity.
+
+... Calibration of images, photometric, astrometric, PSF, noise
+properties.  self-calibration.  What is meant by a world coordinate
+system, a camera model, a photometric calibration, a flat-field, bias,
+dark, and so-on.  A typical CCD noise model.
+
+\section{Measurements in images}
+
+... Why all measurements can be seen as optimizations.  Why not
+optimize the likelihood?  Or even better produce a full likelihood
+function or sample a posterior?
+
+... A measurement of something in an image is inference under a model,
+or an approximation thereto
+
+... Likelihood functions are noise models.
+
+... What is blind and non-blind deconvolution and how are they done?
+Examples?
+ 
+... Deconvolution is what \emph{everyone does always}.  People claim
+to be ``against'' deconvolution, but every positional measurement of
+every star ever made has been a deconvolution.
+
+... How to make catalogs and astrometric and photometric measurements.
+
+... What is a catalog and what is its relationship to an image?
+
+... Consider photometry -- using matched radial profiles or
+``apertures''.
+
+... Note that standard aperture photometry is the fitting of a
+\emph{very inappropriate} model with a \emph{wrong} noise model.  It
+also doesn't account for varying PSF or anything else.  That said, it
+is very insensitive to small-scale PSF and WCS issues.
+
+... A model of a set of images is no harder, in principle or in
+practice, than a model of a single image
+
+... How to measure time-dependent phenomena on sources too faint to
+see in any one image?
+
+\section{Coadding and non-parametric scene inference}
+
+... ``Coadding'' is only justified in extremely limited circumstances
+
+... Coadding prohibits certain kinds of investigations.
+
+... Coadding leads to a non-stationary PSF.
+
+... Many images of the same scene give you more information about the scene than any one image
+
+... How do we capitalize on these sets of images?  When they are taken in different bands and under different PSFs?
+
+... Need to face interpolation; how this works in band-limited data.
+
+\section{Advanced topics}
+
+... What about 2-d spectroscopy?
+
+... What about more complicated objects, like light-field cameras and
+imaging spectrographs?
+
+... What about interferometry?  Michelson vs Fizeau.
+
+\clearpage
+\markright{Notes}\theendnotes
+
+\clearpage
+\begin{thebibliography}{}\markright{References}\raggedright
+\bibitem[Hogg \etal(2010a)]{straightline}
+  Hogg,~D.~W., Bovy,~J., \& Lang,~D., 2010a,
+  ``Data analysis recipes:\ Fitting a model to data'', arXiv:1008.4686
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,297 @@
+% This file is part of the Data Analysis Recipes project.
+% Copyright 2013, 2014 David W. Hogg (NYU).
+
+% to-do
+% -----
+% - Add a proper thank-you to SAMSI.
+% - Figure out notation and stick to one notation; right now it is a mess.
+
+% style notes
+% -----------
+% - abbreviate FML?
+% - pdf not PDF?
+
+\documentclass[12pt,twoside]{article}
+\input{hogg_style}
+\input{vc}
+
+% header stuff
+\renewcommand{\MakeUppercase}[1]{#1}
+\pagestyle{myheadings}
+\renewcommand{\sectionmark}[1]{\markright{\thesection.~#1}}
+\markboth{Probability calculus for inference}{Introduction}
+
+\begin{document}
+\thispagestyle{plain}\raggedbottom
+\section*{{\small \texttt{DRAFT \githash~(\gitdate):}}
+  When should I calculate the fully marginalized likelihood?}
+
+\footnotetext{%
+  The \notename s begin on page~\pageref{note:first}, including the
+  license\note{\label{note:first}%
+    Copyright 2013, 2014 David W. Hogg (NYU).  You may copy and distribute this
+    document provided that you make no changes to it whatsoever.}
+  and the acknowledgements\note{%
+    It is a pleasure to thank
+      Jim Berger (Duke??),
+      Andrew Gelman (Columbia),
+      Sam Roweis (deceased)
+    for discussions and comments.  This
+    research was partially supported by the US National Aeronautics
+    and Space Administration, the US National Science Foundation,
+    and the Moore--Sloan Data Science Environment at NYU.}}
+
+\noindent
+David~W.~Hogg\\
+\affil{Center~for~Cosmology~and~Particle~Physics, Department~of~Physics, New~York~University}\\
+\and~\affil{Center~for~Data~Science, New~York~University}\\
+\and~\affil{Max-Planck-Institut f\"ur Astronomie, Heidelberg}
+%% \\[1ex]
+%% A. Nother Author
+%% \affil{Oxford University}
+
+\paragraph{abstract:}
+In probabilistic inference, computation of relative probabilities for
+mutually exclusive models involves marginalization of the likelihood
+for each model over its entire parameter space, with the prior as
+measure.
+This marginalization produces the fully marginalized likelihood,
+sometimes called the ``Bayes Factor'' or ``evidence integral''.
+Here we argue that performing this integral \emph{for model selection}
+is almost never a good idea.
+The argument involves the following ideas:
+  \textsl{(a)}~The integral is extremely challenging to perform
+  numerically in many instances;
+  \textsl{(b)}~the integral is linearly prior-dependent (even when the
+  data are highly infomative), and for many models priors are just
+  ``made up'';
+  \textsl{(c)}~any kind of decision-making (including model selection)
+  requires a \emph{utility function} that must be integrated along
+  with the likelihood;
+  \textsl{(d)}~that utility will depend in a non-trivial way upon
+  model parameters \emph{within} each model;
+  \textsl{(e)}~utilities are---for very deep reasons---not knowable
+  precisely (making \emph{any} calculation wrong in detail); and
+  \textsl{(f)}~there are approximate or heuristic methods for model
+  selection that are just as wrong but require no expensive
+  integration.
+The one place where calculation of the marginalized likelihood is
+necessary is in creating posterior mixtures of distinct models; this
+is rarely (in astronomy, anyway) the context in which the integral is
+being calculated but \emph{even there} it is often a bad idea:
+  \textsl{(g)}~When priors are being pulled from hats, the mixture
+  weights will end up being just as arbitrary as the arbitrarily set
+  prior hyper-parameters; and
+  \textsl{(h)}~if the weights so overwhelmingly favor one model over
+  the other such that the priors don't matter very much, once again
+  there are heuristics that could have told you that reliably with
+  much less computation.
+
+\section{Generalities}
+
+Imagine you have data $y$ (a vector or list or blob of observations).
+In what follows, a ``model'' $H$ will be a specification of a probabilistic model for these data.
+This model must have three components:
+It must have a (possibly null) set or vector or list or blob of parameters $\theta_H$.
+It must have a \emph{likelihood function} $p(y\given\theta_H,H)$, which is
+  a probability density function (PDF) in the space of the data, parameterized by the parameters.
+And it must have (for our purposes here) a prior PDF $p(\theta_H\given H)$.
+These PDFs (of course) must obey the rules of measure theory;
+  they must be non-negative everywhere and obey
+\begin{eqnarray}
+1 &=& \int p(y\given\theta_H,H)\,\dd y
+\\
+1 &=& \int p(\theta_H\given H)\,\dd \theta_H
+\quad ,
+\end{eqnarray}
+where, implicitly,
+the integrals are over the full space of possible data $y$ or parameters $\theta_H$.
+
+If you have multiple models $H$,
+  you must also have a set of prior probabilities $P_H$, one per model,
+  set such that
+\begin{eqnarray}
+1 &=& \sum_H P_H
+\end{eqnarray}
+where, implicitly,
+the sum is over all models.
+Here we are assuming a complete Bayesianism,
+  in which everything a probabilistic modeler could ever ask for is specified!
+Note also that there is no sense in which these models will be ``similar'' at all;
+  they might be based on very different assumptions,
+  have very different parameters $\theta_H$,
+  have different numbers of parameters (different sizes of the blob $\theta_H$),
+  and permit different ranges for those parameters.
+
+...HOGG NOTE HERE that the prior prediction for the data is generated by a \emph{mixture} of all the models...
+
+Bayes's rule tells us how to update the probabilities given the data;
+  that is, how to compute posterior PDFs $p(\theta_H\given y,H)$
+  and posterior model probabilities $P_{H|y}$:
+\begin{eqnarray}
+p(\theta_H\given y,H) &=& \frac{1}{Z_H(y)}\,p(y\given\theta_H,H)\,p(\theta_H\given H)
+\\
+Z_H(y) &\equiv& p(y\given H)
+\\
+Z_H(y) &=& \int p(y\given\theta_H,H)\,p(\theta_H\given H)\,\dd\theta_H
+\\
+P_{H|y} &=& \frac{1}{Z(y)}\,Z_H(y)\,P_H
+\\
+Z(y) &\equiv& \sum_H Z_H(y)\,P_H
+\end{eqnarray}
+where
+$Z_H(y)$ is a normalization constant
+  but also the ``fully marginalized likelihood'' for model $H$, and
+$Z(y)$ is a normalization constant but
+  now marginalizing over models too.
+
+...HOGG return to the point that the posterior ``model''
+  is still the mixture of all models
+  but now with different support in parameter space and different weights...
+Note that this goes against the idea that Bayes includes within it ``Occam's Razor''...
+
+The magic of Markov Chain Monte Carlo and related methods is that
+  it is possible to sample from $p(\theta_H\given y,H)$ without ever explicitly computing
+  the normalization constant (the marginalized likelihood) $Z_H(y)$.
+That is, it is possible to sample the posterior pdf for the parameters \emph{within any model}
+  or \emph{conditioned on a model} $H$,
+  without computing these normalization constants.
+That said, computation of the updated posterior model probabilities $P_H|y$
+  \emph{does require} computation of these marginalized likelihoods $Z_H(y)$.
+There is a huge literature on their calculation, beyond the scope of this \documentname.
+The computation of these is exceedingly non-trivial,
+  because it requires (in some sense) search of the entire parameter space
+  for regions of substantial likelihood.
+But they are necessary
+  for the updating of model probabilities.
+
+Is it possible to proceed with multiple models or model selection
+  \emph{without} calculating these quantities?
+In what follows, we will show that in the case of model selection,
+  not only is it possible to proceed without ever computing these integrals,
+  it is actually desirable.
+Model selection requires something different from model probabilities.
+
+\section{Why marginalize the likelihood?}
+
+Imagine you have in your research discovered a possible medical treatment,
+  and you are trying to decide whether or not it is effective.
+One model (``ineffective'') is that the treatment does nothing.
+Another model (``effective'') is that the treatment decreases (say) mortality by a factor of $f$.
+The ineffective model is similar to the effective model but with parameter $f$ set to zero.
+That is, the two models have different amounts of freedom.
+This is a clear case where the marginalized likelihood seems like it might be useful.
+Of course I am about to argue that it isn't.
+
+Another example, taken from my own area of research might be the following:
+You are using a telescope to take as many spectra of quasars as you can.
+The problem is, for each source in your database,
+  you don't know with certainty in advance whether it is a star or a quasar;
+  you just have noisy observations relevant to the matter.
+The star model has parameters like temperature, mass, and chemical abundances.
+The quasar model has parameters like redshift, spectral shape, and emission-line strengths.
+The details of these models don't matter that much, but the key ideas are the following:
+There are two models with different numbers and types of parameters.
+You care deeply about which model is more likely to be true, given the data.
+Again, it looks like a clear case in which the marginalized likelihood seems like a good thing to compute.
+Again, I am about to argue that it isn't.
+
+...Perhaps reiterate here that the prior predictions of the model are a mixture,
+  and the posterior predictions are too...
+
+...Say that you \emph{would} compute the marginalized likelihood if what you want
+  are posterior predictions agnostic about model...
+
+...In the two cases above, this is probably not what we want!
+
+\section{Computational costs}
+
+This \documentname\ is not about \emph{how} to compute the marginalized likelihood;
+  it is about \emph{when}.
+However, no discussion of ``when'' can be useful or complete without some comments
+  about the challenges brought by ``how''.
+In problems with many parameters, it is (relatively) easy to sample the posterior PDF.
+It is very, very hard to compute the marginalized likelihood.
+
+Heuristic arguments for hardness.
+Nested sampling.
+Adaptive importance sampling.
+
+\section{Prior mis-specification}
+
+In many ``Bayesian'' contexts, priors are pulled from the air,
+  with little thought towards their representing true \emph{prior} beliefs.
+Priors are chosen for convenience, conjugacy, simplicity, and community acceptance.
+None of these criteria lead to a correctly specified prior in real contexts.
+
+Hierarchical inference and pooling has to be harmed for priors to be well specified.
+
+Be sure to note that this problem exists even if the data are extremely \emph{informative}.
+The posterior pdf is famously insensitive to the prior pdf if the data are informative.
+The FML is not.
+
+\section{Utility matters}
+
+The utility is not (just) a model-level object.
+It is also a parameter-level object.
+
+Notation: You have a choice to make, symbolized $q$.
+Think of $q$ as taking on a set of integer values.
+In the simple case of model selection,
+  the choice $q$ maps onto model $H$,
+  such that choice $q=1$ means ``choose model $H=1$''.
+Now there is a utility $u(q\atfixed H)$ or really $u(q\atfixed\theta,H)$.
+This is the amount you get paid if you choose $q$ when model $H$ is in fact the ``correct'' model,
+  and the parameters in model $H$ are set to value $\theta$.
+In the simplest scenarios of model selection,
+  $u(q\atfixed\theta,H)$ is positive when $q=H$ and negative when $q\neq H$.
+
+Some random equations...
+\begin{eqnarray}
+E[u(q\atfixed H)] &=& \frac{1}{Z(H)}\int u(q\atfixed\theta, H)\,p(D\given\theta,H)\,p(\theta\given H)\,\dd\theta
+\\
+Z(H) &\equiv& \int p(D\given\theta)\,p(\theta\given H)\,\dd\theta
+\quad ,
+\end{eqnarray}
+whatever
+
+...totally general; $q$ could be about whether or not to develop a drug or drill a hole in an aluminum plate.
+
+...even when $q$ is a pure model selection, usually there are parameter-dependent issues involved.  Use the drug and quasar examples to elucidate.
+
+\section{Utility mis-specification}
+
+Your utility ought to be your long-term future discounted free cash flow (LTFDFCF).
+The word ``long-term'' means that you can't write it down precisely or compute it.
+So, \emph{by definition} you can't specify your utility correctly.
+
+This is partially balanced by the fact that you can compute your expected utility with
+  nothing more than an easy-to-obtain posterior sampling.
+
+\section{Heurisic methods}
+
+\section{Sufficient conditions}
+
+\clearpage
+\markright{Notes}\theendnotes
+
+\clearpage
+\begin{thebibliography}{}\markright{References}\raggedright
+\bibitem[Hogg(2009)]{hogg}
+  Hogg,~D.~W., 2009,
+  ``Is cosmology just a plausibility argument?'', arXiv:0910.3374
+\bibitem[Hogg \etal(2010a)]{straightline}
+  Hogg,~D.~W., Bovy,~J., \& Lang,~D., 2010a,
+  ``Data analysis recipes:\ Fitting a model to data'', arXiv:1008.4686
+\bibitem[Hogg \etal(2010b)]{eccentricity}
+  Hogg,~D.~W., Myers,~A.~D., \& Bovy,~J., 2010b,
+  ``Inferring the eccentricity distribution'', arXiv:1008.4146
+\bibitem[Jaynes(2003)]{jaynes}
+  Jaynes,~E.~T., 2003,
+  \textit{Probability theory:\ The logic of science} (Cambridge University Press)
+\bibitem[Sivia \& Skilling(2006)]{sivia}
+  Sivia,~D.~S. \& Skilling,~J., 2006,
+  \textit{Data analysis:\ A Bayesian tutorial}, 2ed (Oxford University Press)
+\end{thebibliography}
+
+\end{document}

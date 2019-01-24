@@ -1,0 +1,213 @@
+% This file is part of the Data Analysis Recipes project.
+% Copyright 2012 David W. Hogg (NYU)
+
+\documentclass[12pt,twoside]{article}
+\input{hogg_style}
+
+% header stuff
+\renewcommand{\MakeUppercase}[1]{#1}
+\pagestyle{myheadings}
+\renewcommand{\sectionmark}[1]{\markright{\thesection.~#1}}
+\markboth{Frequentists and Bayesians}{Introduction}
+
+\begin{document}
+\thispagestyle{plain}\raggedbottom
+\section*{{\small DRAFT 2012-03-10:} Data analysis recipes:\\
+  Frequentists and Bayesians\footnotemark}
+
+\footnotetext{%
+  The \notename s begin on page~\pageref{note:first}, including the
+  license\note{\label{note:first}%
+    Copyright 2012 David W. Hogg (NYU).  You may copy and distribute this
+    document provided that you make no changes to it whatsoever.}
+  and the acknowledgements\note{%
+    It is a pleasure to thank
+      Kyle Cranmer (NYU),
+      Dustin Lang (CMU), and
+      Sam Roweis (deceased)
+    for discussions and comments that shaped these ideas.  This
+    research was partially supported by the US National Aeronautics
+    and Space Administration and National Science Foundation.}}
+
+\noindent
+David~W.~Hogg\\
+\affil{Center~for~Cosmology~and~Particle~Physics, Department~of~Physics, New York University}\\
+\affil{Max-Planck-Institut f\"ur Astronomie, Heidelberg}
+%% \\[1ex]
+%% A. Nother Author
+%% \affil{Center~for~Cosmology~and~Particle~Physics, Department~of~Physics, New York University}
+
+\begin{abstract}
+In performing an inference or a scientific investigation, the
+frequentist and the Bayesian both must choose a set of models that
+will be considered.  Each model consists of a method for calculating a
+likelihood, or the probability (or frequency of occurrence in
+hypothetical repeated experiments) of the data given the model and
+it's parameters.  There is no disagreement at this point between the
+frequentist and the Bayesian, provided that they are both
+probabilistic reasoners.  The Bayesian, in addition, is willing to
+place a measure on model space, and, within each model, on parameter
+space.  This measure is the prior probability; it is an additional
+assumption but permits the Bayesian to perform (often very valuable)
+marginalizations over models or nuisance parameters.  When a definite
+answer or decision is required, the Bayesian can optimize an
+expectation of utility whereas the frequentist is forced to do
+something more heuristic.  In short, there are no conflicts between
+frequentists and Bayesians; frequentists make fewer assumptions and
+Bayesians have greater capabilities.  I illustrate these points with
+specific examples.
+\end{abstract}
+
+\noindent
+What is my goal in writing this \documentname?  It is to put a wet
+blanket on some of the fires burning in data analysis between
+frequentists and Bayesians, because (of course) there is no conflict
+between these groups.  Often there are seeming conflicts at
+``punchline level'' between some kind of frequentist conclusion and
+some kind of Bayesian conclusion.  However, when each case is
+considered carefully, there can't be a conflict, because frequentist
+and Bayesian analyses \emph{answer different questions}.  One answers
+questions about how well models explain data, the other can also
+answer questions about the relative plausibilities of the models, or
+how to weight them when making new predictions.
+
+Many punchline-level differences between frequentists and Bayesians
+are phrased in terms of what each investigator would \emph{decide} in
+a hypothetical data analysis situation.  However, if we are all
+probabilistic reasoners---and this \documentname\ will assume that we
+are---then we all agree that the data are noisy; the data \emph{never}
+lead to a completely decisive result.  That is, data analysis does not
+lead to decisions.  It might lead to information that is very useful
+in making decisions, but \emph{decisions} are not the output of an
+inference.  At the end of any experiment, the result is a set of
+probabilities, probabilities of the data given each of the models and
+at every setting of the parameters, and (for the Bayesian) also
+posterior probabities---think of them as quantitative plausibilities
+if you don't want to assume too much---for all those models and
+settings.  What each investigator does with those probabilities is a
+subject outside the provenance of probabilistic inference and inside
+the area of decision theory.
+
+In real situations, decisions often do have to be made, because the
+data might be being analyzed in order to inform a business decision,
+plan a new experiment, or choose objects or models for further study.
+When decisions \emph{do} have to be made, the frequentist and the
+Bayesian will in general make them differently, because the
+frequentist is careful not to make unnecessary assumptions, while the
+Bayesian has measures that permit integrals; I hope to address this at
+least briefly towards the end of this \documentname.  However, any
+decision-making process is pasted on to probabilistic inference after
+the probabilistic part is over, so the difference between how
+frequentists and Bayesians decide things is just a pure consequence of
+the different questions they are permitted to ask and answer.
+
+There is a kind of data-analyzer or scientific investigator that I
+could describe who is undeniably worse than \emph{either} a
+frequentist \emph{or} a Bayesian.  This is the kind of data analyzer
+who makes up by magic or intuition a heuristic arithmetic operation to
+perform on the data, and publishes, as her or his result, the outcome
+of that heuristic operation.  This kind of investigator is not a
+probabilistic reasoner (probability theory, after all, was not
+referenced in the construction of the heuristic arithmetic operation).
+The inferences of any such investigator will necessarily be improved
+upon by either the frequentist or the Bayesian, at least as I will
+define them below.  In this sense, anyone with a likelihood function
+is a friend, relatively speaking, and if the frequentists and
+Bayesians among us are planning on having a fight, it shouldn't be
+with one another, it should be with these arithmetic-operators, who
+have given a bad name to ``statistics''\note{I never use the word
+  ``statistics'' in my research now; for me it conjures up the idea of
+  ``computing a statistic'' on the data (yes, a heuristic arithmetic
+  operation) and then comparing that statistic to the ``right answer''
+  in a set of naively constructed sets of artificial data.} and
+propagated wrong results throughout the literatures of so many fields.
+
+\section{What is a model?}
+
+\section{Likelihoods are forever.}
+
+Note that the likelihood often contains sort-of two components, one of
+which is sort-of the expectation value for the data, and one of which
+is sort-of the noise model for the data.  The former is usually
+dominated by the signals of interest, and the latter is usually
+dominated by properties of the recording device.  None of this is
+strictly true, but it is often true.
+
+\section{Posterior probabilities are personal.}
+
+If you want a review of probability theory, see [refer to other chapter here].
+
+The Bayesian can produce numbers that are \emph{per unit volume
+  in parameter space} whereas the frequentist can only produce numbers
+that are \emph{per unit volume in data space}.  Different units
+therefore different meanings therefore different capabilities.
+
+At the end of this section I should give the example of object class
+probabilities.  If you publish posterior probabilities, people with
+different prior information \emph{won't be able to use them}, whereas
+if you publish likelihoods, anyone can use them, frequentist or
+Bayesian, and in the latter case no matter what their priors.
+
+\section{Marginalization}
+
+Why is marginalization extremely valuable in many contexts?  Why is it
+impossible for frequentists?
+
+\section{Regularization}
+
+How does the prior help you when your data are bad or indecisive on
+some points of interest?
+
+\section{Don't make a decision you don't have to!}
+
+If you look at your likelihood, it almost always has support over a
+significant range in the parameters you care about.  That means that
+you cannot deliver a single value of that parameter to your readers.
+So don't!
+
+\section{How to decide?}
+
+Even despite everything written above, sometimes you are forced by
+circumstances out of your control to deliver a single answer.  For an
+example from my own research: You might not know with great certainty
+which of the objects in your telescope field of view are the kinds of
+quasars you care about, but you have to drill holes in an aluminum
+plate to position fiber optics for spectroscopy.  That is, you have to
+deliver instructions to a milling machine that will perform the
+irreversible step of cutting metal, even though you only have
+probabilistic information upon which to build these instructions.
+Sometimes you really do have to \emph{decide}.\note{In my experience,
+  machinists who cut metal do not appreciate being given probabilistic
+  plans; it is not even clear what that would mean.  Here's a shot:
+  ``Please deliver to me a sampling of devices, drawn from this
+  probability distribution over plans.''  Of course even that wouldn't
+  help us, because we still need to decide which of the samples to
+  install at the telescope on the night we in fact observe; it would
+  only delay our decision-making.}
+
+\section{Above all, publish likelihood function evaluations!}
+
+\begin{problem}\label{prob:intrinsic}
+Will there be any \problemname s in this \documentname?
+\end{problem}
+
+\clearpage
+\markright{Notes}\theendnotes
+
+\clearpage
+\begin{thebibliography}{}\markright{References}
+\bibitem[Jaynes(2003)]{jaynes}
+  Jaynes,~E.~T., 2003,
+  \textit{Probability theory:\ The logic of science} (Cambridge University Press)
+\bibitem[Mackay(2003)]{mackay}
+  Mackay,~D.~J.~C., 2003,
+  \textit{Information theory, inference, and learning algorithms} (Cambridge University Press)
+\bibitem[Press \etal(2007)]{press}
+  Press,~W.~H., Teukolsky,~S.~A., Vetterling,~W.~T., \& Flannery,~B.~P., 2007,
+  \textit{Numerical recipes:\ The art of scientific computing} (Cambridge University Press)
+\bibitem[Sivia \& Skilling(2006)]{sivia}
+  Sivia,~D.~S. \& Skilling,~J., 2006,
+  \textit{Data analysis:\ A Bayesian tutorial} (Oxford University Press)
+\end{thebibliography}
+
+\end{document}

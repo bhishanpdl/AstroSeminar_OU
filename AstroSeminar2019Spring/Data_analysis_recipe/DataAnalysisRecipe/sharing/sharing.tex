@@ -1,0 +1,354 @@
+% This file is part of the Data Analysis Recipes project.
+% Copyright 2016 David W. Hogg (NYU).
+
+% to-do
+% -----
+% - First draft
+% - Make sure the ``you'' in the tables is returned to as an issue; who is the audience?
+% - Career-stage considerations.
+% - deal with all HOGG DWH or all-caps.
+
+% style notes
+% -----------
+% - These documents are ``Chapters'', no?  Use \documentname.
+% - [LaTeX] newline after every full stop for proper git diffing
+% - [LaTeX] eqnarray not equation
+% - \note{} right after word if you are endnoting a phrase,
+%   but after the full stop if endnoting the sentence or paragraph.
+
+\documentclass[12pt,twoside,pdftex]{article}
+\usepackage{dar_endnotes}
+\usepackage{enumitem}
+
+\newcommand{\chaptertitle}{The costs and benefits of releasing your data and open-sourcing your code}
+\newcommand{\shorttitle}{Releasing data and open-sourcing code}
+\include{dar}
+\newlength{\myl}
+\settowidth{\myl}{9.\rule{\itemsep}{0pt}}
+\setlist{nosep, leftmargin=\myl}
+
+\begin{document}\sloppy\sloppypar\raggedbottom\thispagestyle{plain}%
+%
+\section*{Data analysis recipes:\\ \chaptertitle\footnotemark}
+%
+\footnotetext{%
+    The notes begin on page~\pageref{note:first}, including the
+    license\note{\label{note:first}
+        Copyright 2016 the author.
+        This work is licensed under a
+        \href{http://creativecommons.org/licenses/by-nc-nd/3.0/deed.en\_US}{%
+            Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported
+            License}.}
+    and the acknowledgements\note{%
+        I would like to thank
+          Alice Allen (ASCL),
+          Michael Blanton (NYU),
+          Dustin Lang (Toronto),
+          Dan Foreman-Mackey (UW),
+          Adrian Price-Whelan (Princeton),
+          Hans-Walter Rix (MPIA),
+          Sam Roweis (deceased),
+          Jake Vanderplas (UW),
+          and the entire astrophysics community
+        for valuable advice, ideas, and vision over the years.
+        I also thank
+          Eric Agol (UW),
+          Joss Bland-Hawthorn (Sydney),
+          Kai Blin (DTU),
+          Caroline Bot (Strasbourg),
+          C.~Titus Brown (Davis),
+          Daniel Cotton (UNSW),
+          Kyle Cranmer (NYU),
+          Casey Greene (Penn),
+          Robert T.~McGibbon (D.~E.~Shaw),
+          Paul McMillan (Lund),
+          Andy Mueller (NYU),
+          Will O'Mullane (ESAC),
+          Philip Stark (Berkeley),
+          and
+          Jason Wright (PSU)
+        for comments on some of the specific content in this document.
+        This project benefitted from various research grants, especially
+          from NSF, NASA,
+          and the The Moore--Sloan Data Science Environment.}
+}
+
+\noindent
+\textbf{David~W.~Hogg}\\
+\affil{Simons~Center~for~Data~Analysis,
+       Simons~Foundation}\\
+\affil{Center~for~Cosmology~and~Particle~Physics, Department~of~Physics,
+       New~York~University}\\
+\affil{Center~for~Data~Science,
+       New~York~University}\\
+\affil{Max-Planck-Institut~f\"ur~Astronomie, Heidelberg}
+
+\begin{abstract}
+The sharing of data and code brings an investigator great benefits
+(such as greater impact, good will, and reproducibility), but it also
+incurs substantial costs (such as documentation and support
+requirements, and risks of getting scooped).
+The decision to share or not to share data and code is always
+technically subjective, depending---as it does---both on
+posterior beliefs about the world and on a utility function.
+This \documentname\ does not contain a manifesto that advocates sharing!
+It is a discussion of the considerations that must be weighed with one's
+beliefs and utility in order to make a sensible decision.
+A scientist's utility function is likely to be a strong function of personality and career
+stage; a scientist's beliefs (about, say, colleagues and funding
+agencies) will be a strong function of field of study;
+there is no simple conclusion.
+However, benefits outnumber (not necessarily \emph{outweigh}, but \emph{outnumber})
+costs for code sharing, and the opposite may be true for data sharing;
+that is, it is more likely that an investigator will want to share
+code than data.
+However there are some ``economies of scale'' in which simultaneous
+sharing of code and data can be better than sharing either alone.
+In general, investigators working in fields that are fecund---where there
+are more results to be investigated than there are investigators---are
+more incentivized to share than those working in fields that are more
+sterile.
+\end{abstract}~ \\
+
+\section{Subjectivity, utility, pragmatism}
+
+As we have discussed elsewhere in this series of
+\documentnames\note{We discuss this in \documentnames\ not yet
+  written, about model selection, and the presentation of
+  results. These are \emph{decisions}, which for our purposes are
+  events in which we have to depart from probabilistic
+  reasoning---or bring it to a close---and commit to a single, irreversible outcome.}, good
+decision-making requires both quantitative beliefs (in the form of
+posterior pdfs over outcomes) and a quantitative utility function.
+That's a high bar!
+But even reasonably sensible decisions require some thinking about
+what things are reasonably probable to happen, and what their costs or
+value to you might be.
+Nowhere is this more stark than in the decisions that every scientist
+faces about the sharing of their data and data-analysis code with
+their colleagues and the world at large.
+
+Since we are not going to get quantitative in what follows---it is
+notoriously hard to develop quantitative beliefs about things that
+actually \emph{matter}\note{It has always struck me as odd and
+  terrible that we can obtain extremely principled, quantitative
+  posterior beliefs about, say, the orbital parameters of a binary
+  star, but we don't even try when it comes to things like whether an
+  employee is a good hire, or a project is worth starting. This has
+  many causes, not the least of which is a lack of good data, a point
+  to which I will return.}---I won't say too much more about either
+your posterior beliefs or your utility, except for two things:
+The first is that we should be focused on the \emph{long-term} future,
+not the short-term future.\note{As I (hope I) discuss in more detail
+  in other \documentname s in this series, a sensible framework for
+  thinking about utility in decision-making is your long-term future
+  discounted free cash flow (LTFDFCF). This is a great utility if you
+  imagine marginal fungibility between preferences and cash. That is,
+  you don't have to imagine that money can buy you love, but you do
+  have to imagine that money can buy you a few more minutes of quality
+  time with your loved ones. The difference between cash flow and
+  profit is relevant. The ideas of ``long-term'' and ``discounted''
+  are mentioned a bit in the main text following this \notename. I
+  learned about the LTFDFCF in the short period in which I consulted
+  for the company \project{Google}, which (in 2008-ish, anyway) had
+  adopted it explicitly as it's own objective, and (furthermore, in
+  this context) identified \emph{opportunity costs} as its largest
+  running category of cost!}
+Now what constitutes the ``long term'' for a graduate student is
+likely to be very different from what constitutes the long term for a
+tenured faculty member; for the former it might be two years, and for
+the latter it might be twenty; the term is deliberately vague.
+In economics, it is defined (roughly) to be the timescale on which
+all factors of production and costs can vary.
+For a scientist, it could be defined (roughly) to be the timescale on
+which what you are working on, how you work on it (and why) could all
+vary.
+That is, the long term is exactly the time period over which you can't
+make confident predictions about outcomes!
+However, we want to build careers, not results in papers, and to build
+a career (or a community, or anything of lasting importance), you want
+to be focusing on the long term.
+
+The second (and related) point is that there is an effective
+\emph{discount rate}.
+That is---all other things being equal---you prefer immediate gains to
+future gains, and the relationship is exponential in time.
+This discount rate is \emph{also} a strong function of career stage
+(and probably personality); it is likely to be much higher for a
+graduate student than a tenured faculty member\note{Until the tenured
+  faculty member is diagnosed with a terminal illness!}
+These considerations will be relevant to anyone weighing the costs and
+benefits in what follows:
+Some of these costs and benefits are paid and received immediately,
+and some take time to build up; for instance the long-term
+preservation of your data might be a cost you will only really feel
+many years in the future, while you might need to write documentation
+immediately.
+These costs, therefore, ought to be weighed differently by different
+scientists at different career stages.
+
+HOGG: Going to treat data and code in parallel for most of what follows.
+
+HOGG: The huge issue that there is almost no DATA to point to. This is
+all qualitative crap. Cite what IS relevant.
+
+\section{Overview}
+
+Most of the points of discussion that will appear in this
+\documentname\ appear in summary form in \tablename~\ref{tab:data} and
+\tablename~\ref{tab:code}.%
+\newlength{\cwidth}\setlength{\cwidth}{0.483\textwidth}%
+\begin{table}%
+\begin{tabular}{@{}p{\cwidth}|p{\cwidth}@{}}% note @{} entries to remove space on edges
+\multicolumn{2}{c}{\textbf{releasing data}} \\ \hline
+\multicolumn{1}{c|}{costs} & \multicolumn{1}{c}{benefits} \\ \hline
+\begin{enumerate}\raggedright
+\item you might get scooped
+\item you will have to document the data and its issues
+\item you will have to answer questions about the data, sometimes dumb ones
+\item you will have to beat down bad and incorrect papers written about your data
+\item your reputation could suffer if the data are used wrongly
+\item you will have to pay for archiving and web interface
+\item you will have to make plans for long-term stewardship
+\item there might be legal and privacy issues
+\end{enumerate}&\begin{enumerate}\raggedright
+\item more science gets done, more papers get written; all measures of impact increase
+\item results become (more) reproducible and hackable
+\item you are motivated to write up analyses and discoveries in a timely manner
+\item you are motivated to document the data
+\item outsiders reanalyze and generate new ideas for calibration or analysis; these improve your own future work
+\item data are preserved
+\item you get cred and visibility and build community
+\item you are motivated to produce data products on some schedule
+\item it's the right thing to do
+\end{enumerate}\end{tabular}
+\caption{Summary of costs and benefits for data release, vaguely
+  ordered by importance (from most important to least). All of these
+  telegraphic points are discussed in more depth in the main text. The
+  word ``you'' is used loosely here---different readers will be at
+  different career stages and have very different utilities---but this
+  will be elaborated upon in the main text.\label{tab:data}}
+\end{table}
+
+\begin{table}%
+\begin{tabular}{@{}p{\cwidth}|p{\cwidth}@{}}% note @{} entries to remove space on edges
+\multicolumn{2}{c}{\textbf{open-sourcing code}} \\ \hline
+\multicolumn{1}{c|}{costs} & \multicolumn{1}{c}{benefits} \\ \hline
+\begin{enumerate}\raggedright
+\item you might get scooped
+\item you can be embarrassed by your ugly code, or by your failure to comment or document
+\item you will have to answer questions (and often stupid or irrelevant ones) about the code, and spend time documenting
+\item you will have to consider pull requests or otherwise maintain the code, possibly far into the future
+\item you might have to beat down bad and incorrect results generated with your code
+\item your reputation could suffer if the code is used wrongly
+\item there could be legal (including military) and license issues
+\end{enumerate}&\begin{enumerate}\raggedright
+\item more science gets done, more papers get written; all measures of impact increase
+\item you get motivation to clean and document the code
+\item results become (more) reproducible and (more) trustworthy
+\item outsiders find bugs or make improvements to your code and deliver pull requests
+\item you get cred and visibility and build community
+\item citation rates might go up
+\item code is preserved
+\item code becomes searcheable (including by you!) and \emph{backed up}
+\item there are good sites for long-term archiving and interface
+\item can establish priority on an idea or prior art on a method
+\end{enumerate}\end{tabular}
+\caption{Summary of costs and benefits for open-source code release,
+  vaguely ordered from most important to least. As with
+  \tablename~\ref{tab:data}, all of these are discussed in more depth
+  in the main text, including the subjective ``you''. Some of the
+  issues listed here apply not just to open-sourcing code, but also to
+  releasing code, publishing code, or shipping
+  software.\label{tab:code}}
+\end{table}
+
+These \tablename s make an attempt to boil down the (relatively nuanced, I
+hope) discussion in what follows into a set of quotable bullet points.
+Also, the points in the \tablename s are organized somehow by my
+perception of their ``importance'' or weight for a typical scientist,
+where ``typical'' is defined (I guess) to be ``just like me''.
+This is \emph{not} the order in which I discuss them in what follows.
+In what follows, I attempt to discuss them in an order that is (in
+some sense) political or sociological or anthropological.
+That is, I try to situate them somewhat in terms of power, status,
+career stage, and so on.
+
+HOGG: Once again, there are no DATA. Sucks!
+
+\section{Personal considerations}
+
+Search! Hosting! Preservation!
+
+Documentation burden (bad). Documentation pressure (good).
+
+Exposure of the horror (bad). Encouragement to be less horrible (good).
+
+HOGG: how releasing code and data together might help a bit?
+
+\section{Team and management considerations}
+
+HOGG: how releasing code and data together helps a lot!
+
+\section{Proprietary period and timeline}
+
+\section{Ethical and legal considerations}
+
+You might expect me here to go all ``ethically, you must release your
+data!''; I won't, because there are many situations in which it might
+be in fact \emph{unethical} to release data and code.
+That said, in most cases, releasing your data and code \emph{does}
+make the world a better place: You are sharing your ideas and effort
+with the world, and empowering others with less to do more.
+As I said in the outset, I think scientists should make decisions that
+optimize their utility, and that their utility should be based on a
+long-term view.
+In the long term, everyone---and scientists in particular---benefit
+from behaving ethically; in our business you \emph{can} do well by
+doing good.
+So, other things being equal, the ethical considerations usually fall
+on the side of public release of data and code, especially after some
+kind of proprietary period or perhaps with some conditions that
+protect the people on your team who worked so hard to get those data
+and build that code (especially the young ones).
+Here is some more discussion of those places where the ethical
+considerations are a bit more complicated:
+
+Ownership and licensing (next section).
+
+IANAL, but there are lawyers! But NumFOCUS and the like.
+
+Patents.
+
+Military restrictions; military uses. HOGG Cite SM!
+
+Coming back to the personal point about exposing the horror and
+requirements to document: Both of these have ethical aspects: The more
+we expose the horror, the more we make people comfortable with
+sharing. The more we document, the more we help others with
+reproducibility and with new science.
+
+\section{Licensing}
+
+Open-sourcing your code means more than just publishing it.
+
+Again IANAL.
+
+Licensing has not really been explored for data, at least not in most
+scientific domains.
+
+\clearpage
+\markright{Notes}\theendnotes
+
+\clearpage
+\raggedright
+\begin{thebibliography}{}\markright{References}
+\bibitem[Foreman-Mackey \etal(2012)]{emcee}
+  Foreman-Mackey,~D., Hogg,~D.~W., Lang,~D., \& Goodman,~J.\ 2012,
+  \project{emcee}: The \acronym{MCMC} Hammer,
+  \textit{Pubs.\ Astron.\ Soc.\ Pac.}\ \textbf{125} 306--312
+  \doi{10.1086/670067}
+  (also \arxiv{1202.3665}).
+\end{thebibliography}
+
+\end{document}
