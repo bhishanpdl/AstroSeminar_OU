@@ -1,0 +1,9 @@
+# example 4 to download datasets
+===================================
+cd to that directory
+sudo wget -r -l2 -nd --no-clobber -A dat,txt,csv,tsv http://astrostatistics.psu.edu/MSMA/datasets/index.html
+
+
+Download to given folder
+============================
+sudo wget -P ~/Downloads -r -l2 -nd --no-clobber -A tsv http://astrostatistics.psu.edu/MSMA/datasets/index.html

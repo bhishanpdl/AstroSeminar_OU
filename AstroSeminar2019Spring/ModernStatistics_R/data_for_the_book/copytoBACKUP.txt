@@ -1,0 +1,20 @@
+to update
+=========
+rsync -azvu --progress /home/bhishan/Copy /media/bhishan/BACKUP
+
+
+To sync Copy from HOME to BACKUP
+================================
+rsync -azv --delete --progress /home/bhishan/Copy /media/bhishan/BACKUP
+
+
+a = archive - means it preserves permissions 
+    (owners, groups), times, symbolic links, and devices.
+r = recursive - means it copies 
+    directories and sub directories
+v = verbose - means that it prints on the screen 
+    what is being copied
+u = update - means do not delete new files in destination
+--progress = shows progress
+--delete   = deletes non mathced files in destination
+
