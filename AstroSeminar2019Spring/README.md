@@ -110,3 +110,91 @@ plt.text(5, 30, text)
 plt.show()
 ```
 ![](images/DAR_ex3.png)
+
+# Chi-Squared Value
+
+$$
+\chi ^ { 2 } = \sum _ { i = 1 } ^ { N } \frac { \left[ y _ { i } - f \left( x _ { i } \right) \right] ^ { 2 } } { \sigma _ { y i } ^ { 2 } } \equiv [ Y - A X ] ^ { \top } C ^ { - 1 } [ Y - A X ]
+$$
+
+# Using MAP method
+```python
+# Load a dataset with first 5 rows as outliers
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import scipy.optimize as spo
+plt.rcParams["figure.figsize"] = [10, 8]
+%matplotlib inline
+
+import scipy.linalg as linalg
+
+# load data
+df = pd.read_csv('data_allerr.dat',sep='&')
+df.columns = [i.strip('#').strip() for i in df.columns]
+
+
+# matrices A,C, Y, yerr
+df1 = df.iloc[4:, :]
+x = df1.x.values
+y = df1.y.values
+yerr = df1['sigm_y'].values  # sigma y is yerr
+
+degree = 1
+X = x
+Y = y
+A = np.vander(x, degree+1, increasing=True).astype(float)  # 1, x, x**2
+C = np.diag(yerr*yerr)  # diagonal matrix of yerr**2
+
+degree = 1
+Y = y
+A = np.vander(x, degree+1, increasing=True).astype(float)  # 1, x, x**2
+C = np.diag(yerr*yerr)  # diagonal matrix of yerr**2
+
+# Bestfit
+cinv = linalg.inv(C)
+cinv_y = cinv @ Y.T
+at_cinv_y = A.T @ cinv_y
+
+cinv_a = cinv @ A
+at_cinv_a = A.T @ cinv_a
+
+bestfitvar = linalg.inv(at_cinv_a)
+bestfit = bestfitvar @ at_cinv_y  # bestfit = params = c,b,a for ax**2 + bx + c
+print('bestfitvar =\n', bestfitvar, '\n\nbestfit=', bestfit)
+
+# Log of bi-exponential cost function
+def logbiexp(mb,X,Y,yerr):
+    b,m = mb
+    abs_err = np.fabs(Y -m*X -b)
+    return np.sum(abs_err/yerr)
+
+# Optimize bi-exponential objective function using bestfit
+bestfitbiexp = spo.optimize.fmin(logbiexp,bestfit,(X,Y,yerr),disp=False)
+print('\nbestfitbiexp = ', bestfitbiexp)
+
+# plot errorbar
+plt.errorbar(X,Y,yerr,color='k',marker='o',linestyle='None')
+
+# Plot the best fit line
+nsamples = 1001
+plt.xlim(0,300)
+plt.ylim(0,700)
+xs = np.linspace(plt.xlim()[0],plt.xlim()[1],nsamples)
+b,m = bestfitbiexp
+ys = m * xs + b
+sgn_str = '-' if b < 0 else '+'
+cost = logbiexp(bestfitbiexp,X,Y,yerr)
+label = 'y = {:4.2f}x {} {:2.0f}; X = {:3.1f}'.format(m,sgn_str,np.abs(b),cost)
+label = r'$' + label + r' $'
+plt.plot(xs,ys,color='k',ls='--',label=label)
+
+# legends and limits
+l = plt.legend(loc=(.3,.1),numpoints=8)
+l.draw_frame(False)
+plt.xlabel(r'$x$')
+plt.ylabel(r'$y$')
+plt.plot(xs,ys,'k--')
+plt.show()
+```
+![](images/data_analysis_recipe_ex6a.png)
